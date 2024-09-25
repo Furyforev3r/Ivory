@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+:root {
+  --white: #ffffff;
+  --snow: #fffafa;
+  --ivory: #fffff0;
+  --ghost-white: #f8f8ff;
+  --floral-white: #fffaf0;
+  --linen: #faf0e6;
+  --old-lace: #fdf5e6;
+  --seashell: #fff5ee;
+  --white-smoke: #f5f5f5;
+  --gainsboro: #dcdcdc;
+  --background-base: #fff;
+  --background-highlight: #f2f2f2;
+  --background-press: #e6e6e6;
+  --background-elevated-base: #f9f9f9;
+  --background-elevated-highlight: #eaeaea;
+  --background-elevated-press: #dcdcdc;
+  --text-base: #121212;
+  --text-subdued: #6b6b6b;
+  --text-bright-accent: #1ed760;
+  --text-negative: #f15e6c;
+  --text-warning: #ffa42b;
+  --text-positive: #1ed760;
+  --text-announcement: #3d91f4;
+  --essential-base: #121212;
+  --essential-subdued: #6b6b6b;
+  --essential-bright-accent: #1ed760;
+  --essential-negative: #e91429;
+  --essential-warning: #ffa42b;
+  --essential-positive: #1ed760;
+  --essential-announcement: #0d72ea;
+  --decorative-base: #121212;
+  --decorative-subdued: #6b6b6b;
+  --black-color-primary: #fff;
+  --black-color-secondary: #f2f2f7;
+  --gray-color: #d6d6d6;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  background: var(--white);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-base);
+}
