@@ -15,16 +15,14 @@
 </svelte:head>
 
 <main class="main">
-    {#if !login}
-        <div class="loginContent">
-            <h1>Ivory!</h1>
-            <p>Your favorite little space.</p>
-        </div>
-        <div class="divider"></div>
-        <div class="loginContent">
-            <button><img src={googleIcon} width="25px" /> Login with Google</button>
-        </div>
-    {/if}
+    <div class="loginContent">
+        <h1>Ivory!</h1>
+        <p>Your favorite little space.</p>
+    </div>
+    <div class="divider"></div>
+    <div class="loginContent">
+        <button><img src={googleIcon} width="25px" alt="Google Icon" /> Login with Google</button>
+    </div>
 </main>
 
 <style>
