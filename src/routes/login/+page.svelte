@@ -1,11 +1,26 @@
 <script lang="ts">
-    import { goto } from '$app/navigation'
+    import { loginWithGoogle } from "$lib/utils/firebaseUtils"
+    import { user } from "$lib/hooks/loginState"
+    import { afterUpdate } from "svelte"
+    import { goto } from "$app/navigation"
     import googleIcon from "$lib/images/googleIcon.svg"
 
-    let login: bool = false
+    let userInfo
 
-    if (login) {
-        goto("/")
+    $: userInfo = $user
+
+    afterUpdate(() => {
+        if (userInfo) {
+            goto("/")
+        }
+    })
+    
+    async function handleGoogleLogin() {
+        const { success, user, error } = await loginWithGoogle()
+
+        if (success) {
+            goto("/")
+        }
     }
 </script>
 
@@ -21,7 +36,7 @@
     </div>
     <div class="divider"></div>
     <div class="loginContent">
-        <button><img src={googleIcon} width="25px" alt="Google Icon" /> Login with Google</button>
+        <button on:click={handleGoogleLogin}><img src={googleIcon} width="25px" alt="Google Icon" /> Login with Google</button>
     </div>
 </main>
 

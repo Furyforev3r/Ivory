@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { goto } from '$app/navigation'
-    import { onMount } from 'svelte'
+	import { goto } from "$app/navigation"
+    import { user } from "$lib/hooks/loginState"
+    import { afterUpdate } from "svelte"
 
-    let login: bool = false
+    let userInfo
 
-    onMount(() => {   
-        if (!login) {
+    $: userInfo = $user
+    
+    afterUpdate(() => {
+        if (!userInfo) {
             goto("/login")
         }
     })
