@@ -9,12 +9,11 @@
             goto("/login")
         }
     })
-
 </script>
 
 <svelte:head>
-	<title>Ivony</title>
-	<meta name="description" content="Ivony!" />
+	<title>Ivory</title>
+	<meta name="description" content="Ivory!" />
 </svelte:head>
 
 <main class="main">

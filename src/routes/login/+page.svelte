@@ -10,14 +10,14 @@
 </script>
 
 <svelte:head>
-    <title>Ivony - Login</title>
-    <meta name="description" content="Ivony!" />
+    <title>Ivory - Login</title>
+    <meta name="description" content="Ivory!" />
 </svelte:head>
 
 <main class="main">
     {#if !login}
         <div class="loginContent">
-            <h1>Ivony!</h1>
+            <h1>Ivory!</h1>
             <p>Your favorite little space.</p>
         </div>
         <div class="divider"></div>
