@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app"
+import { initializeApp, getApps } from "firebase/app"
 import { getAuth, GoogleAuthProvider } from "firebase/auth"
 
 const firebaseConfig = {
@@ -11,7 +11,13 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_MEASUREMENT_ID
 }
 
-const app = initializeApp(firebaseConfig)
+let app
+
+if (!getApps.lenght) {
+  app = initializeApp(firebaseConfig, "default-app")
+} else {
+  firebaseApp = getApps()[0]
+}
 
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()

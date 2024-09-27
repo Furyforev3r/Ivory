@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { goto } from "$app/navigation"
-    import { user } from "$lib/hooks/loginState"
+    import { goto } from "$app/navigation"
+    import { user } from "$lib/client/hooks/loginState"
+    import { logout } from "$lib/client/utils/firebaseUtils"
     import { afterUpdate } from "svelte"
 
     let userInfo
@@ -15,12 +16,12 @@
 </script>
 
 <svelte:head>
-	<title>Ivory</title>
-	<meta name="description" content="Ivory!" />
+    <title>Ivory</title>
+    <meta name="description" content="Ivory!" />
 </svelte:head>
 
 <main class="main">
-	<h1>Hello World!</h1>
+    <h1 on:click={logout}>Hello World!</h1>
 </main>
 
 <style>

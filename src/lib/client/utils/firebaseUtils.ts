@@ -1,4 +1,4 @@
-import { auth, googleProvider } from "$lib/services/firebase"
+import { auth, googleProvider } from "$lib/client/services/firebase"
 import { signInWithPopup, signOut } from "firebase/auth"
 
 export async function loginWithGoogle() {

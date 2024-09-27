@@ -1,9 +1,10 @@
 <script lang="ts">
-    import { loginWithGoogle } from "$lib/utils/firebaseUtils"
-    import { user } from "$lib/hooks/loginState"
+    import { loginWithGoogle } from "$lib/client/utils/firebaseUtils"
+    import { user } from "$lib/client/hooks/loginState"
     import { afterUpdate } from "svelte"
     import { goto } from "$app/navigation"
     import googleIcon from "$lib/images/googleIcon.svg"
+    import axios from 'axios'
 
     let userInfo
 
@@ -19,8 +20,27 @@
         const { success, user, error } = await loginWithGoogle()
 
         if (success) {
-            goto("/")
+            try {
+                const response = await axios.post('/api/login', {
+                    'uid': user.uid,
+                    'photoURL': user.photoURL,
+                    'bannerURL': '/placeholder/',
+                    'displayName': user.displayName,
+                    'description': 'Hello Ivory!',
+                    'createdAt': user.metadata.createdAt,
+                    'email': user.email,
+                    'emailVerified': user.emailVerified,
+                    'settings': { default: true }
+                })
+
+                if (response.status === 200) {
+                  goto("/")
+                }
+            } catch (error) {
+                console.error("Login error:", error)
+            }
         }
+
     }
 </script>
 

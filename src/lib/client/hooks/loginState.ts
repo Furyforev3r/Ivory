@@ -1,4 +1,4 @@
-import { auth } from "$lib/services/firebase"
+import { auth } from "$lib/client/services/firebase"
 import { writable } from 'svelte/store'
 
 export const user = writable("Loading...")
