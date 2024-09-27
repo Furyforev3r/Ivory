@@ -33,7 +33,7 @@
             </li>
             <li>
                 <Icon icon="material-symbols:account-circle-outline" width="28px" height="28px" />
-                <a href={`/${userInfo.user.uid}`}>Profile</a>
+                <a href={`/${userInfo.user.username}`}>Profile</a>
             </li>
             <li>
                 <Icon icon="material-symbols:settings-outline-rounded" width="28px" height="28px" />

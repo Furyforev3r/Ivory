@@ -11,13 +11,14 @@
     $: userInfo = $user
 
     afterUpdate(() => {
-        if (userInfo) {
+        if (userInfo && user.uid) {
             goto("/")
         }
     })
-    
+
     async function handleGoogleLogin() {
         const { success, user, error } = await loginWithGoogle()
+
 
         if (success) {
             try {
@@ -26,6 +27,7 @@
                     'photoURL': user.photoURL,
                     'bannerURL': '/placeholder/',
                     'displayName': user.displayName,
+                    'username': `${user.displayName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '.').substring(0, 10).toLowerCase()}.${user.uid.substring(0, 5).toLowerCase()}`,
                     'description': 'Hello Ivory!',
                     'createdAt': user.metadata.createdAt,
                     'email': user.email,
@@ -33,14 +35,13 @@
                     'settings': { default: true }
                 })
 
-                if (response.status === 200) {
-                  goto("/")
+                if (response.status === 201) {
+                    goto("/")
                 }
             } catch (error) {
                 console.error("Login error:", error)
             }
         }
-
     }
 </script>
 
