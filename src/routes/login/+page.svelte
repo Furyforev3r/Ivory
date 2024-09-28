@@ -11,7 +11,7 @@
     $: userInfo = $user
 
     afterUpdate(() => {
-        if (userInfo && user.uid) {
+        if (userInfo) {
             goto("/")
         }
     })
@@ -35,7 +35,7 @@
                     'settings': { default: true }
                 })
 
-                if (response.status === 201) {
+                if (response.status === 201 || response.status == 409) {
                     goto("/")
                 }
             } catch (error) {

@@ -9,7 +9,7 @@
     let userInfo
 
     $: userInfo = $user
-    
+
     afterUpdate(() => {
         if (!userInfo) {
             goto("/login")
@@ -23,7 +23,7 @@
 </svelte:head>
 
 <main class="main">
-    {#if userInfo === 'Loading...'}
+    {#if userInfo == 'Loading...'}
         <div class="loading">
             <Icon icon="svg-spinners:3-dots-move" width="6rem" height="6rem" style="color: black" />
         </div>
