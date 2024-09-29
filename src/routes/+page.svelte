@@ -5,6 +5,7 @@
     import { afterUpdate } from "svelte"
     import Icon from "@iconify/svelte"
     import Tabs from "$lib/components/+Tabs.svelte"
+    import Discover from "$lib/components/+Discover.svelte"
 
     let userInfo
 
@@ -29,6 +30,10 @@
         </div>
     {:else if userInfo}
         <Tabs userUID={userInfo.uid} />
+        <div class="content">
+            
+        </div>
+        <Discover />
     {/if}
 
 </main>
@@ -36,11 +41,24 @@
 <style>
     .main {
         height: 100dvh;
+        display: flex;
+        flex-direction: row;
+    }
+
+    .content {
+        width: 50%;
+        border-inline: 1px solid var(--gainsboro);
     }
 
     .loading {
         display: grid;
         place-items: center;
         height: 100%;        
+    }
+
+    @media (max-width: 800px) {
+        .content {
+            width: 90%;
+        }
     }
 </style>

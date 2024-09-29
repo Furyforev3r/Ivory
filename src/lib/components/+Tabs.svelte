@@ -61,9 +61,10 @@
 
 <style>
     .tabs {
+        overflow: auto;
         height: 100%;
         max-height: 100vh;
-        max-width: 256px;
+        width: 25%;
         padding-inline: 1.2rem;
         background: var(--background-elevated-base);
     }
@@ -145,10 +146,9 @@
         background: var(--text-negative);
     }
 
-
     @media (max-width: 800px) {
         .tabs {
-            width: 80px;
+            width: 10%;
         }
 
         .tabs ul {
@@ -156,7 +156,7 @@
             align-items: center;
         }
 
-        .tabs ul li {
+        .tabs ul li a {
             width: 28px;
         }
 
@@ -168,7 +168,7 @@
             width: 44px;
         }
 
-        .tabs ul li a {
+        .tabs ul li p {
             display: none;
         }
 
