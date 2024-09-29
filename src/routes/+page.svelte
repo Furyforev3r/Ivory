@@ -47,18 +47,21 @@
 
     .content {
         width: 50%;
+        max-width: 50%;
         border-inline: 1px solid var(--gainsboro);
     }
 
     .loading {
         display: grid;
         place-items: center;
-        height: 100%;        
+        height: 100%;
+        width: 100%;      
     }
 
     @media (max-width: 800px) {
         .content {
             width: 90%;
+            max-width: 90%;
         }
     }
 </style>

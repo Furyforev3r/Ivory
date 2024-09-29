@@ -91,6 +91,7 @@
         align-items: center;
         background: var(--white-smoke);
         border-radius: 0.3rem;
+        border: 0.1rem solid var(--background-elevated-press);
         transition: 0.3s background;
     }
 
@@ -100,7 +101,7 @@
 
     .tabs ul li a {
         text-decoration: none;
-        color: var(--text-base);
+        color: var(--text-subdued);
         font-size: 18px;
         font-weight: 600;
     }
@@ -115,7 +116,7 @@
         justify-content: center;
         gap: 0.3rem;
         border: none;
-        border-radius: 0.8rem;
+        border-radius: 999px;
         transition: 0.3s background;
     }
 

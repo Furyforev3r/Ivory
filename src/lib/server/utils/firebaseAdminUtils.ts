@@ -15,6 +15,23 @@ export async function getUserByUID(uid) {
   }
 }
 
+export async function getUserByUsername(username) {
+  try {
+    const userSnapshot = await db.collection('Users').where('username', '==', username).get()
+
+    if (!userSnapshot.empty) {
+      const userData = userSnapshot.docs[0].data()
+      return { success: true, user: userData }
+    } else {
+      return { success: false, message: 'User not found' }
+    }
+  } catch (error) {
+    console.error('Error fetching user by username:', error)
+    return { success: false, error: 'Failed to fetch user' }
+  }
+}
+
+
 export async function registerUser(user) {
   try {
     const getUser = await getUserByUID(user.uid)

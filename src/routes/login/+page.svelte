@@ -25,8 +25,8 @@
                 const response = await axios.post('/api/login', {
                     'uid': user.uid,
                     'photoURL': user.photoURL,
-                    'bannerURL': '/placeholder/',
-                    'displayName': user.displayName,
+                    'bannerURL': 'https://firebasestorage.googleapis.com/v0/b/ivory-social.appspot.com/o/Ivory%2FIvory%20Banner%20(1).png?alt=media&token=ca08dc25-eaa8-46e3-b130-27847aa113a4',
+                    'displayName': user.displayName.substring(0, 15),
                     'username': `${user.displayName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '.').substring(0, 10).toLowerCase()}.${user.uid.substring(0, 5).toLowerCase()}`,
                     'description': 'Hello Ivory!',
                     'createdAt': user.metadata.createdAt,

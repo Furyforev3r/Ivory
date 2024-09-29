@@ -57,6 +57,8 @@
         align-items: center;
         padding: 0.5rem;
         background: var(--background-elevated-highlight);
+        border: 0.1rem solid var(--background-elevated-press);
+        color: var(--text-subdued);
         border-radius: 1rem;
     }
 
