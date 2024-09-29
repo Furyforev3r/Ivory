@@ -24,20 +24,28 @@
                 <img src={userInfo.user.photoURL} width="64px" class="profilePicture" />                
             </a>
             <li>
-                <Icon icon="material-symbols:home-outline-rounded" width="28px" height="28px" />
-                <a href='/'>Home</a>
+                <a href='/'>
+                    <Icon icon="material-symbols:home-outline-rounded" width="28px" height="28px" />
+                    <p>Home</p>
+                </a>
             </li>
             <li>
-                <Icon icon="material-symbols:search" width="28px" height="28px" class="icon" />
-                <a href="/search">Search</a>
+                <a href="/search">
+                    <Icon icon="material-symbols:search" width="28px" height="28px" class="icon" />
+                    <p>Search</p>
+                </a>
             </li>
             <li>
-                <Icon icon="material-symbols:account-circle-outline" width="28px" height="28px" />
-                <a href={`/${userInfo.user.username}`}>Profile</a>
+                <a href={`/${userInfo.user.username}`}>
+                    <Icon icon="material-symbols:account-circle-outline" width="28px" height="28px" />
+                    <p>Profile</p>
+                </a>
             </li>
             <li>
-                <Icon icon="material-symbols:settings-outline-rounded" width="28px" height="28px" />
-                <a href="/settings">Settings</a>
+                <a href="/settings">
+                    <Icon icon="material-symbols:settings-outline-rounded" width="28px" height="28px" />
+                    <p>Settings</p>
+                </a>
             </li>
             <button class="postButton">
                 <Icon icon="material-symbols:edit-square-outline-rounded" width="28px" height="28px" color="fff" />
@@ -73,7 +81,7 @@
         gap: 1rem;
     }
 
-    .tabs ul li {
+    .tabs ul li a {
         padding: 0.8rem;
         cursor: pointer;
         display: flex;
@@ -85,7 +93,7 @@
         transition: 0.3s background;
     }
 
-    .tabs ul li:hover {
+    .tabs ul li a:hover {
         background: var(--background-elevated-press);
     }
 
