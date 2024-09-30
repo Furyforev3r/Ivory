@@ -16,3 +16,4 @@ if (!adminApp) {
 }
 
 export const db = getFirestore(adminApp)
+export const auth = adminApp.auth()
