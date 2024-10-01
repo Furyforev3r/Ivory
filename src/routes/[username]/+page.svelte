@@ -1,8 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation"
     import { user } from "$lib/client/hooks/loginState"
-    import { logout } from "$lib/client/utils/firebaseUtils"
-    import { afterUpdate } from "svelte"
+    import { onMount } from "svelte"
     import Icon from "@iconify/svelte"
     import Tabs from "$lib/components/+Tabs.svelte"
     import Discover from "$lib/components/+Discover.svelte"
@@ -14,6 +13,7 @@
     let userInfo
     let username
     let userProfile
+    let userProfileClone
     let canEdit = false
     let editing = false
     let formErrors = {}
@@ -25,7 +25,7 @@
         description: ''
     }
 
-    $:username = $page.params.username
+    $: username = $page.params.username
     $: userInfo = $user
 
     const profileSchema = z.object({
@@ -41,18 +41,23 @@
             .max(160, "Description cannot exceed 160 characters."),
     })
 
-    afterUpdate(async () => {
+    async function fetchUserData() {
+        const response = await axios.get(`/api/getAccount/?username=${username}`)
+        userProfile = response.data
+        userProfileClone = userProfile
+
+        if (userProfile.user.uid == userInfo.uid) {
+            canEdit = true
+        }
+    }
+
+    onMount(async () => {
         if (!userInfo) {
             goto("/login")
         }
 
         if (username && userInfo && !userProfile || userProfile.user.username != username) {
-            const response = await axios.get(`/api/getAccount/?username=${username}`)
-            userProfile = response.data
-
-            if (userProfile.user.uid == userInfo.uid) {
-                canEdit = true
-            }
+            fetchUserData()
         }
     })
 
@@ -60,7 +65,9 @@
         editing = !editing
     }
 
-    async function handleEditProfile(e) {        
+    async function handleEditProfile(e) {
+        e.preventDefault()
+
         const formData = {
             bannerURL: e.target.bannerURL.value,
             photoURL: e.target.photoURL.value,
@@ -79,8 +86,19 @@
             formErrors = result.error.format()
             toast.error("Form is invalid")
         } else {
-            let response = await axios.put(`api/editAccount?token=${userInfo.accessToken}&uid=${userInfo.uid}`, result.data)
-            goto('/')
+            try {
+                let response = await axios.put(`api/editAccount?token=${userInfo.accessToken}&uid=${userInfo.uid}`, result.data)
+
+                if (response.status == 200) {
+                    toast.success(response.data.message)
+                    fetchUserData()
+                } else {
+                    toast.error(response.data.error)
+                }
+            } catch (error) {
+                toast.error("An error occurred while updating the profile")
+            }
+            goto(`/${userProfile.user.username}`)
         }
     }
 </script>
@@ -108,31 +126,31 @@
                     </div>
 
                     <label for="bannerURL">Profile Banner URL</label>
-                    <input id="bannerURL" placeholder="Banner URL..." type="text" bind:value={userProfile.user.bannerURL} />
+                    <input id="bannerURL" placeholder="Banner URL..." type="text" bind:value={userProfileClone.user.bannerURL} />
                     {#if formErrors.bannerURL}
                         <span class="error">{formErrors.bannerURL._errors[0]}</span>
                     {/if}
 
                     <label for="photoURL">Profile Photo URL</label>
-                    <input id="photoURL" placeholder="Photo URL..." type="text" bind:value={userProfile.user.photoURL} />
+                    <input id="photoURL" placeholder="Photo URL..." type="text" bind:value={userProfileClone.user.photoURL} />
                     {#if formErrors.photoURL}
                         <span class="error">{formErrors.photoURL._errors[0]}</span>
                     {/if}
 
                     <label for="username">Profile Username</label>
-                    <input id="username" placeholder="Username..." type="text" bind:value={userProfile.user.username} />
+                    <input id="username" placeholder="Username..." type="text" bind:value={userProfileClone.user.username} />
                     {#if formErrors.username}
                         <span class="error">{formErrors.username._errors[0]}</span>
                     {/if}
 
                     <label for="displayName">Profile Display Name</label>
-                    <input id="displayName" placeholder="Display Name..." type="text" bind:value={userProfile.user.displayName} />
+                    <input id="displayName" placeholder="Display Name..." type="text" bind:value={userProfileClone.user.displayName} />
                     {#if formErrors.displayName}
                         <span class="error">{formErrors.displayName._errors[0]}</span>
                     {/if}
 
                     <label for="description">Profile Description</label>
-                    <textarea id="description" placeholder="Description..." bind:value={userProfile.user.description}></textarea>
+                    <textarea id="description" placeholder="Description..." bind:value={userProfileClone.user.description}></textarea>
                     {#if formErrors.description}
                         <span class="error">{formErrors.description._errors[0]}</span>
                     {/if}

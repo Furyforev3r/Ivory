@@ -80,7 +80,6 @@ export async function editUserProfile(uid, updatedUserData, token) {
 
     const currentUserData = userDoc.data()
 
-    // Check if the username is being changed
     if (updatedUserData.username && updatedUserData.username !== currentUserData.username) {
       const existingUserCheck = await getUserByUsername(updatedUserData.username)
       if (existingUserCheck.success) {
