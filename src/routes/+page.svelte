@@ -60,8 +60,8 @@
 
     @media (max-width: 800px) {
         .content {
-            width: 90%;
-            max-width: 90%;
+            width: 85%;
+            max-width: 85%;
         }
     }
 </style>

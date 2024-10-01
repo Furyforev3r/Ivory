@@ -25,7 +25,7 @@
         description: ''
     }
 
-    $: username = $page.params.username
+    $:username = $page.params.username
     $: userInfo = $user
 
     const profileSchema = z.object({
@@ -46,7 +46,7 @@
             goto("/login")
         }
 
-        if (username && userInfo && !userProfile) {
+        if (username && userInfo && !userProfile || userProfile.user.username != username) {
             const response = await axios.get(`/api/getAccount/?username=${username}`)
             userProfile = response.data
 
@@ -77,7 +77,6 @@
 
         if (!result.success) {
             formErrors = result.error.format()
-            console.error(formErrors)
             toast.error("Form is invalid")
         } else {
             let response = await axios.put(`api/editAccount?token=${userInfo.accessToken}&uid=${userInfo.uid}`, result.data)
@@ -373,8 +372,8 @@
 
     @media (max-width: 800px) {
         .content {
-            width: 90%;
-            max-width: 90%;
+            width: 85%;
+            max-width: 85%;
         }
     }
 </style>

@@ -149,7 +149,7 @@
 
     @media (max-width: 800px) {
         .tabs {
-            width: 10%;
+            width: 15%;
         }
 
         .tabs ul {
