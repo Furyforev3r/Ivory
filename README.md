@@ -4,4 +4,4 @@
 Your favorite little space.
 
 ## What is Ivory?
-is a social networking site that allows users to post, share, and interact with short messages.
+Is a social networking site that allows users to post, share, and interact with short messages.
