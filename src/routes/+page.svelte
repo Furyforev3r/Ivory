@@ -73,11 +73,11 @@
     }
 
     .content {
-        width: 50%;
-        max-width: 50%;
+        flex-grow: 1;
         border-inline: 1px solid var(--gainsboro);
         display: flex;
         flex-direction: column;
+        overflow: auto;
     }
 
     .loading {
@@ -99,8 +99,7 @@
 
     .posts {
         flex-grow: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: auto;
     }
 
     .posts::-webkit-scrollbar {
@@ -111,12 +110,5 @@
     .posts::-webkit-scrollbar-thumb {
         background: var(--background-elevated-press);
         border-radius: 0.8rem;
-    }
-
-    @media (max-width: 800px) {
-        .content {
-            width: 85%;
-            max-width: 85%;
-        }
     }
 </style>

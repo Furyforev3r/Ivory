@@ -76,7 +76,7 @@
         gap: 0.8rem;
         padding: 1rem;
         border-block: 1px solid var(--gainsboro);
-        width: 100%;
+        flex-grow: 1;
         transition: 0.8s background;
     }
 
@@ -144,5 +144,21 @@
 
     .icon:hover {
         background: var(--background-press);
+    }
+
+    @media (max-width: 800px) {
+        .postInfo {
+            flex-direction: column;
+            gap: 0.1rem;
+            align-items: start;
+        }
+
+        .username {
+            font-size: 14px;
+        }
+
+        .postInfo span {
+            display: none;
+        }
     }
 </style>

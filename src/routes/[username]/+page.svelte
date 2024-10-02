@@ -205,8 +205,8 @@
     }
 
     .content {
-        width: 50%;
-        max-width: 50%;
+        flex-grow: 1;
+        overflow: auto;
         border-inline: 1px solid var(--gainsboro);
     }
 
@@ -386,12 +386,5 @@
 
     .selected {
         border-bottom: 0.3rem solid var(--background-elevated-press);
-    }
-
-    @media (max-width: 800px) {
-        .content {
-            width: 85%;
-            max-width: 85%;
-        }
     }
 </style>
