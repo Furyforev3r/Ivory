@@ -6,14 +6,31 @@
     import Icon from "@iconify/svelte"
     import Tabs from "$lib/components/+Tabs.svelte"
     import Discover from "$lib/components/+Discover.svelte"
+    import Post from "$lib/components/+Post.svelte"
+    import axios from "axios"
 
     let userInfo
+    let timeline
 
     $: userInfo = $user
 
-    afterUpdate(() => {
+    afterUpdate(async () => {
         if (!userInfo) {
             goto("/login")
+        } else {
+            if (!timeline) {
+                try {
+                    let response = await axios.get('api/getRecentPosts?limit=10')
+
+                    if (response.status == 200 || response.status == 201) {
+                        timeline = response.data
+                    } else {
+                        console.error(response.data.error)
+                    }          
+                } catch (error) {
+                    console.error(error)
+                }
+            }
         }
     })
 </script>
@@ -31,7 +48,16 @@
     {:else if userInfo}
         <Tabs userUID={userInfo.uid} />
         <div class="content">
-            
+            <div class="header">
+                <h2>Ivory.</h2>
+            </div>
+            <div class="posts">
+                {#if timeline}
+                    {#each timeline.posts.posts as post}
+                        <Post post={post}/>
+                    {/each}
+                {/if}
+            </div>
         </div>
         <Discover />
     {/if}
@@ -43,12 +69,15 @@
         height: 100dvh;
         display: flex;
         flex-direction: row;
+        overflow: hidden;
     }
 
     .content {
         width: 50%;
         max-width: 50%;
         border-inline: 1px solid var(--gainsboro);
+        display: flex;
+        flex-direction: column;
     }
 
     .loading {
@@ -56,6 +85,32 @@
         place-items: center;
         height: 100%;
         width: 100%;      
+    }
+
+    .header {
+        padding: 1rem;
+        display: grid;
+        place-items: center;
+    }
+
+    .header h2 {
+        color: var(--text-subdued);
+    }
+
+    .posts {
+        flex-grow: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .posts::-webkit-scrollbar {
+        width: 10px;
+        background-color: var(--background-elevated-highlight);
+    }
+
+    .posts::-webkit-scrollbar-thumb {
+        background: var(--background-elevated-press);
+        border-radius: 0.8rem;
     }
 
     @media (max-width: 800px) {

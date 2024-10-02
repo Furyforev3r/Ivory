@@ -1,5 +1,4 @@
-import { db } from "$lib/server/services/firebaseAdmin"
-import { auth } from "$lib/server/services/firebaseAdmin"
+import { db, auth, fieldValue } from "$lib/server/services/firebaseAdmin"
 
 async function verifyToken(token) {
   try {
@@ -25,6 +24,24 @@ export async function getUserByUID(uid) {
   }
 }
 
+export async function getSimpleUserByUID(uid) {
+  try {
+    const userDoc = await db.collection('Users').doc(uid).get()
+
+    if (userDoc.exists) {
+      let { email, settings, emailVerified, BannerURL, createdAt, ...userData } = userDoc.data()
+
+      return { success: true, user: userData }
+    } else {
+      return { success: false, message: 'User not found' }
+    }
+  } catch (error) {
+    console.error('Error fetching user by UID:', error)
+    return { success: false, error: 'Failed to fetch user' }
+  }
+}
+
+
 export async function getUserByUsername(username) {
   try {
     const userSnapshot = await db.collection('Users').where('username', '==', username).get()
@@ -47,7 +64,7 @@ export async function registerUser(user) {
     const getUser = await getUserByUID(user.uid)
 
     if (getUser.success === false && getUser.message === 'User not found') {
-      await db.collection('Users').doc(user.uid).set(user)
+      await db.collection('Users').doc(user.uid).set({ ...user, 'createdAt': fieldValue.serverTimestamp() })
 
       return { success: true, user }
     }
@@ -56,6 +73,51 @@ export async function registerUser(user) {
   } catch (error) {
     console.error('Error registering user:', error)
     return { success: false, error: 'Failed to register user' }
+  }
+}
+
+export async function getRecentPosts(limit = 10) {
+  try {
+    const postsSnapshot = await db.collection('Posts')
+      .orderBy('uploadDate', 'desc')
+      .limit(limit)
+      .get()
+
+    if (!postsSnapshot.empty) {
+      const posts = postsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+
+      return { success: true, posts }
+    } else {
+      return { success: false, message: 'No posts found' }
+    }
+  } catch (error) {
+    console.error('Error fetching recent posts:', error)
+    return { success: false, error: 'Failed to fetch recent posts' }
+  }
+}
+
+export async function newPost(post, token) {
+  try {
+
+    const tokenVerification = await verifyToken(token)
+
+    if (!tokenVerification.success) {
+      return { success: false, message: tokenVerification.error }
+    }
+
+    if (tokenVerification.uid !== post.userUID) {
+      return { success: false, message: 'You do not have permission to make this post' }
+    }
+
+    const newPost = await db.collection('Posts').add( { 'uploadDate': fieldValue.serverTimestamp(), ...post } )
+
+    return { success: true, newPost }
+  } catch (error) {
+    console.error('Error making the post:', error)
+    return { success: false, error: 'Failed to post' }
   }
 }
 

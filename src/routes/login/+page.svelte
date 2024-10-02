@@ -29,7 +29,6 @@
                     'displayName': user.displayName.substring(0, 15),
                     'username': `${user.displayName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '.').substring(0, 10).toLowerCase()}.${user.uid.substring(0, 5).toLowerCase()}`,
                     'description': 'Hello Ivory!',
-                    'createdAt': user.metadata.createdAt,
                     'email': user.email,
                     'emailVerified': user.emailVerified,
                     'settings': { default: true }

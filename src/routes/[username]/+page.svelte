@@ -177,8 +177,8 @@
                 <h2>{userProfile.user.displayName}</h2>
                 <p class="username">@{userProfile.user.username}</p>
                 <div class="profileInfo">
-                    <a href={`/${userProfile.user.username}/aaa/followers`}><span>0</span> Followers</a>
-                    <a href={`/${userProfile.user.username}/aaa/following`}><span>0</span> Following</a>
+                    <a href={`/${userProfile.user.username}/followers`}><span>0</span> Followers</a>
+                    <a href={`/${userProfile.user.username}/following`}><span>0</span> Following</a>
                     <p><span>0</span> Posts</p>
                 </div>
                 <div class="profileDescription">

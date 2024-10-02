@@ -1,5 +1,5 @@
 import admin from 'firebase-admin'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import { FIREBASE_ADMIN_KEY } from '$env/static/private'
 
 let adminApp
@@ -15,5 +15,6 @@ if (!adminApp) {
   }
 }
 
+export const fieldValue = FieldValue
 export const db = getFirestore(adminApp)
 export const auth = adminApp.auth()
