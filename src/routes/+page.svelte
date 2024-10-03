@@ -20,7 +20,7 @@
         } else {
             if (!timeline) {
                 try {
-                    let response = await axios.get('api/getRecentPosts?limit=10')
+                    let response = await axios.get('api/getRecentPosts?limit=100')
 
                     if (response.status == 200 || response.status == 201) {
                         timeline = response.data
