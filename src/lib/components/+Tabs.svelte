@@ -276,7 +276,8 @@
         overflow: auto;
         height: 100%;
         max-height: 100vh;
-        width: 25%;
+        min-width: 25%;
+        max-width: 25%;
         padding-inline: 1.2rem;
         background: var(--background-elevated-base);
     }
@@ -366,7 +367,8 @@
         }
 
         .tabs {
-            width: 15%;
+            min-width: 15%;
+            max-width: 15%;
         }
 
         .tabs ul {
