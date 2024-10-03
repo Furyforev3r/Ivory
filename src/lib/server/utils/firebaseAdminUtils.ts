@@ -99,6 +99,30 @@ export async function getRecentPosts(limit = 10) {
   }
 }
 
+export async function getPostsByUserUID(userUID, limit = 10) {
+  try {
+    const postsSnapshot = await db.collection('Posts')
+      .where('userUID', '==', userUID)
+      .orderBy('uploadDate', 'desc')
+      .limit(limit)
+      .get()
+
+    if (!postsSnapshot.empty) {
+      const posts = postsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+
+      return { success: true, posts }
+    } else {
+      return { success: false, message: 'No posts found for this user' }
+    }
+  } catch (error) {
+    console.error('Error fetching posts by userUID:', error)
+    return { success: false, error: 'Failed to fetch user posts' }
+  }
+}
+
 export async function newPost(post, token) {
   try {
 

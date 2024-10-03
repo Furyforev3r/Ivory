@@ -17,19 +17,19 @@
     afterUpdate(async () => {
         if (!userInfo) {
             goto("/login")
-        } else {
-            if (!timeline) {
-                try {
-                    let response = await axios.get('api/getRecentPosts?limit=10')
+        }
 
-                    if (response.status == 200 || response.status == 201) {
-                        timeline = response.data
-                    } else {
-                        console.error(response.data.error)
-                    }          
-                } catch (error) {
-                    console.error(error)
-                }
+        if (!timeline) {
+            try {
+                let response = await axios.get('api/getRecentPosts?limit=100')
+
+                if (response.status == 200 || response.status == 201) {
+                    timeline = response.data
+                } else {
+                    console.error(response.data.error)
+                }          
+            } catch (error) {
+                console.error(error)
             }
         }
     })

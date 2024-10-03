@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation"
     import { user } from "$lib/client/hooks/loginState"
-    import { onMount } from "svelte"
+    import { afterUpdate } from "svelte"
     import Icon from "@iconify/svelte"
     import Tabs from "$lib/components/+Tabs.svelte"
     import Discover from "$lib/components/+Discover.svelte"
@@ -9,6 +9,7 @@
     import axios from "axios"
     import { z } from "zod"
     import toast, { Toaster } from "svelte-french-toast"
+    import Post from "$lib/components/+Post.svelte"
 
     let userInfo
     let username
@@ -24,6 +25,7 @@
         displayName: '',
         description: ''
     }
+    let userPosts
 
     $: username = $page.params.username
     $: userInfo = $user
@@ -49,15 +51,32 @@
         if (userProfile.user.uid == userInfo.uid) {
             canEdit = true
         }
+
+        try {
+            let response = await axios.get(`api/getPostsByUserUID?userUID=${userProfile.user.uid}&limit=100`)
+
+            if (response.status == 200 || response.status == 201) {
+                userPosts = response.data
+            } else {
+                console.error(response.data.error)
+            }
+        } catch (error) {
+            console.error(error)
+        }
     }
 
-    onMount(async () => {
+    afterUpdate(async () => {
         if (!userInfo) {
             goto("/login")
         }
 
-        if (username && userInfo && !userProfile || userProfile.user.username != username) {
-            fetchUserData()
+        if (username && userInfo && (!userProfile || userProfile.user.username !== username)) {
+            userProfile = null
+            userProfileClone = null
+            userPosts = null
+            canEdit = false
+            editing = false
+            await fetchUserData()
         }
     })
 
@@ -186,9 +205,16 @@
                 </div>
                 <div class="contentList">
                     <button class="contentButton selected">Posts</button>
-                    <button class="contentButton">Replies</button>
+<!--                     <button class="contentButton">Replies</button>
                     <button class="contentButton">Media</button>
-                    <button class="contentButton">Likes</button>
+                    <button class="contentButton">Likes</button> -->
+                </div>
+                <div class="posts">
+                    {#if userPosts}
+                        {#each userPosts.posts.posts as post}
+                            <Post post={post}/>
+                        {/each}
+                    {/if}
                 </div>
             </div>
         </div>
@@ -208,6 +234,16 @@
         flex-grow: 1;
         overflow: auto;
         border-inline: 1px solid var(--gainsboro);
+    }
+
+    .content::-webkit-scrollbar {
+        width: 10px;
+        background-color: var(--background-elevated-highlight);
+    }
+
+    .content::-webkit-scrollbar-thumb {
+        background: var(--background-elevated-press);
+        border-radius: 0.8rem;
     }
 
     .loading {

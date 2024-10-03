@@ -10,16 +10,14 @@
     let user
 
     onMount(async () => {
-        if (!user) {
-            try {
-                const response = await axios.get(`/api/getSimpleUser?uid=${post.userUID}`)
+        try {
+            const response = await axios.get(`/api/getSimpleUser?uid=${post.userUID}`)
 
-                if (response.status === 200) {
-                    user = response.data.user
-                }
-            } catch (error) {
-                console.error(error)
+            if (response.status === 200) {
+                user = response.data.user
             }
+        } catch (error) {
+            console.error(error)
         }
     })
 
