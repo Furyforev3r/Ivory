@@ -361,6 +361,10 @@
     }
 
     @media (max-width: 800px) {
+        .postToastContainer {
+            width: 80%;
+        }
+
         .tabs {
             width: 15%;
         }
