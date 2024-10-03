@@ -114,6 +114,7 @@
     }
 
     .content {
+        word-break: break-word;
         max-width: 80%;
     }
 
@@ -145,10 +146,18 @@
     }
 
     @media (max-width: 800px) {
+        .postContainer {
+            width: 100%;
+        }
+
         .postInfo {
             flex-direction: column;
             gap: 0.1rem;
             align-items: start;
+        }
+
+        .displayName {
+            font-size: 14px;
         }
 
         .username {

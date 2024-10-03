@@ -423,4 +423,27 @@
     .selected {
         border-bottom: 0.3rem solid var(--background-elevated-press);
     }
+
+    @media (max-width: 800px) {
+        .profile {
+            padding: 0.3rem;
+        }
+
+        .profile h2 {
+            font-size: 18px;
+        }
+
+        .profileInfo a , .profileInfo p, .profileDescription p, .contentButton {
+            font-size: 14px;
+        }
+
+        .topInfo {
+            margin-bottom: 0.5rem;
+            flex-direction: column;
+        }
+
+        .posts {
+            overflow: auto;
+        }
+    }
 </style>
