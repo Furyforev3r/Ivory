@@ -111,4 +111,12 @@
         background: var(--background-elevated-press);
         border-radius: 0.8rem;
     }
+</style>width: 10px;
+        background-color: var(--background-elevated-highlight);
+    }
+
+    .posts::-webkit-scrollbar-thumb {
+        background: var(--background-elevated-press);
+        border-radius: 0.8rem;
+    }
 </style>
