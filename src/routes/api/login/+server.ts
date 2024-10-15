@@ -1,5 +1,4 @@
 import { json } from "@sveltejs/kit"
-import { db } from "$lib/server/services/firebaseAdmin"
 import { registerUser } from "$lib/server/utils/firebaseAdminUtils"
 
 function validateUserInput(user) {

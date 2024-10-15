@@ -1,9 +1,15 @@
 <script lang="ts">
     import Icon from "@iconify/svelte"
+    import { goto } from "$app/navigation"
+
+    function handleSearch(event: Event) {
+        event.preventDefault()
+        goto('/search')
+    }
 </script>
 
 <div class="discover">
-    <form class="searchForm">
+    <form class="searchForm" on:submit|preventDefault={handleSearch}>
         <div class="search">
             <Icon icon="material-symbols:search" width="30px" height="26px" class="icon" />
             <input type="search" name="searchInput" placeholder="Search...">
@@ -40,7 +46,8 @@
     .discover {
         height: 100%;
         max-height: 100vh;
-        width: 25%;
+        min-width: 25%;
+        max-width: 25%;
         padding-inline: 1.2rem;
         background: var(--background-elevated-base);
     }

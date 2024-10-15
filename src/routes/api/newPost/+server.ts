@@ -1,5 +1,4 @@
 import { json } from "@sveltejs/kit"
-import { db } from "$lib/server/services/firebaseAdmin"
 import { newPost } from "$lib/server/utils/firebaseAdminUtils"
 
 export async function POST({ url, request }) {

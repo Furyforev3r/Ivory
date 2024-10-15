@@ -283,6 +283,7 @@
     }
 
     .profilePicture {
+        min-width: 64px;
         border: 1px solid var(--white-smoke);
         border-radius: 50%;
         cursor: pointer;

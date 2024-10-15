@@ -27,7 +27,6 @@
 
         return formatDistanceToNow(dataUpload, { locale: ptBR, addSuffix: true })
     }
-
 </script>
 
 <div class="postContainer">
@@ -83,7 +82,9 @@
     }
 
     .userPic {
+        min-width: 52px;
         border-radius: 50%;
+        object-fit: cover;
         border: 1px solid var(--gainsboro);
     }
 

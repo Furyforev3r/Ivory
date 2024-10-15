@@ -180,3 +180,53 @@ export async function editUserProfile(uid, updatedUserData, token) {
     return { success: false, error: 'Failed to update profile' }
   }
 }
+
+export async function search(query, limit = 10) {
+  try {
+    const usersByUsernameSnapshot = await db.collection('Users')
+      .where('username', '>=', query)
+      .where('username', '<=', query + '\uf8ff')
+      .limit(limit)
+      .get()
+
+    const usersByDescriptionSnapshot = await db.collection('Users')
+      .where('description', '>=', query)
+      .where('description', '<=', query + '\uf8ff')
+      .limit(limit)
+      .get()
+
+    let users = []
+
+    if (!usersByUsernameSnapshot.empty || !usersByDescriptionSnapshot.empty) {
+      const usersFromUsername = usersByUsernameSnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        isUser: true
+      }))
+      const usersFromDescription = usersByDescriptionSnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        isUser: true
+      }))
+      users = [...usersFromUsername, ...usersFromDescription]
+    }
+
+    const normalizedQuery = query.toLowerCase()
+    const postsSnapshot = await db.collection('Posts').get()
+    
+    let posts = postsSnapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+      isUser: false
+    }))
+
+    posts = posts.filter(post => post.content.toLowerCase().includes(normalizedQuery))
+
+    const results = [...users, ...posts]
+
+    return { success: true, results }
+  } catch (error) {
+    console.error('Error during search:', error)
+    return { success: false, error: 'Failed to execute search' }
+  }
+}

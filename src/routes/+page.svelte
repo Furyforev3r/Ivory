@@ -61,7 +61,6 @@
         </div>
         <Discover />
     {/if}
-
 </main>
 
 <style>
