@@ -30,7 +30,9 @@
 </script>
 
 <div class="postContainer">
-    {#if user && post}
+    {#if !user || !post}
+        <span class="loading"></span>
+    {:else if user && post}
         <a href={`/${user.username}`}>
             <img class="userPic" alt={user.displayName} src={user.photoURL} width="52px" height="52px" />
         </a>
@@ -80,6 +82,19 @@
     .postContainer:hover {
         background: var(--background-highlight);
     }
+
+    @keyframes loading {
+        from { background: var(--background-highlight); }
+        to { background: var(--snow); }
+    }
+
+    .loading {
+        width: 100%;
+        padding: 3rem;
+        background: var(--background-highlight);
+        animation-name: loading;
+        animation: loading 0.6s infinite alternate ease-in-out;
+   }
 
     .userPic {
         min-width: 52px;

@@ -77,7 +77,11 @@
 
 <nav class="tabs">
     <Toaster />
-    {#if userAccount && userInfo}
+    {#if userInfo == 'Loading...'}
+        <div class="loading">
+            <Icon icon="svg-spinners:3-dots-move" width="6rem" height="6rem" style="color: black" />
+        </div>
+    {:else if userAccount && userInfo}
         {#if post}
             <div class="postToast">
                 <div class="postToastContainer">   
