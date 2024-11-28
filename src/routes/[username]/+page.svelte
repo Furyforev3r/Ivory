@@ -70,7 +70,7 @@
             goto("/login")
         }
 
-        if (username && userInfo && (!userProfile || userProfile.user.username !== username)) {
+        if (username && userInfo && !userProfile) {
             userProfile = null
             userProfileClone = null
             userPosts = null
@@ -110,14 +110,14 @@
 
                 if (response.status == 200) {
                     toast.success(response.data.message)
-                    fetchUserData()
+                    await goto(`/${userProfile.user.username}`)
+                    await fetchUserData()
                 } else {
                     toast.error(response.data.error)
                 }
             } catch (error) {
                 toast.error("An error occurred while updating the profile")
             }
-            goto(`/${userProfile.user.username}`)
         }
     }
 </script>
