@@ -70,7 +70,7 @@
             goto("/login")
         }
 
-        if (username && userInfo && !userProfile) {
+        if (username && userInfo && !userProfile || userProfile.user.username != username) {
             userProfile = null
             userProfileClone = null
             userPosts = null
