@@ -219,8 +219,10 @@ export async function search(query, limit = 10) {
       id: doc.id,
       isUser: false
     }))
-
-    posts = posts.filter(post => post.content.toLowerCase().includes(normalizedQuery))
+    
+    const filteredItems = posts.filter(post => 
+        post?.content?.toLowerCase().includes(normalizedQuery.toLowerCase())
+    )
 
     const results = [...users, ...posts]
 

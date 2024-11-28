@@ -9,7 +9,7 @@ export async function GET({ url }) {
       return json({ error: 'Query parameter is required' }, { status: 400 })
     }
 
-    const searchResults = await search(query)
+    const searchResults = await search(query, 100)
 
     if (searchResults.success) {
       return json(searchResults, { status: 200 })
