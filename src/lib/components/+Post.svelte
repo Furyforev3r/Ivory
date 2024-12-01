@@ -29,7 +29,7 @@
     }
 </script>
 
-<div class="postContainer">
+<a class="postContainer" href={`/post/${post.id}`}>
     {#if !user || !post}
         <span class="loading"></span>
     {:else if user && post}
@@ -65,7 +65,7 @@
             </div>
         </div>
     {/if}
-</div>
+</a>
 
 <style>
     .postContainer {
@@ -77,6 +77,8 @@
         border-block: 1px solid var(--gainsboro);
         flex-grow: 1;
         transition: 0.8s background;
+        text-decoration: none;
+        color: var(--text-base);
     }
 
     .postContainer:hover {

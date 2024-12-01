@@ -123,6 +123,23 @@ export async function getPostsByUserUID(userUID, limit = 10) {
   }
 }
 
+export async function getPostByUID(postUID: string) {
+  try {
+    const postDoc = await db.collection('Posts').doc(postUID).get()
+
+    if (postDoc.exists) {
+      let post = postDoc.data()
+
+      return { success: true, post: post }
+    } else {
+      return { success: false, message: 'No posts found for this UID' }
+    }
+  } catch (error) {
+    console.error('Error fetching posts by postUID:', error)
+    return { success: false, error: 'Failed to fetch post' }
+  }
+}
+
 export async function newPost(post, token) {
   try {
 
