@@ -45,7 +45,7 @@
 
 
     async function validateAndPost() {
-        if (!imageURL.trim()) {
+        if (!imageURL.trim() && image) {
             errorMessage = "You must provide an image URL to post."
             return
         }
