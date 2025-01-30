@@ -45,8 +45,13 @@
 
 
     async function validateAndPost() {
+        if (!imageURL.trim()) {
+            errorMessage = "You must provide an image URL to post."
+            return
+        }
+
         const validationResult = postSchema.safeParse({ postValue, imageURL })
-        
+
         if (!validationResult.success) {
             errorMessage = validationResult.error.errors[0]?.message
         } else {
@@ -72,7 +77,6 @@
             }
         }
     }
-
 </script>
 
 <nav class="tabs">
