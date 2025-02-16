@@ -3,7 +3,7 @@
 # 🔥 Ivory.
 Your favorite little space.
 
-## ❓ What is Ivory?
+# ❓ What is Ivory?
 Is a social networking site that allows users to post, share, and interact with short messages.
 
 ## 📥 Setup
