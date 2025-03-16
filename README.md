@@ -1,9 +1,12 @@
-![Ivory Banner](https://github.com/user-attachments/assets/c3499f31-180a-4f40-83e3-949fc7f4431b)
 
-# 🔥 Ivory.
-Your favorite little space.
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/e92fa2ed-921c-41cf-9c5f-31b1c0749425" alt="Ivory" width="300"/>
+  <h1>Ivory</h1>
+</div>
 
-# ❓ What is Ivory?
+**Your favorite little space.**
+
+## ❓ What is Ivory?
 Is a social networking site that allows users to post, share, and interact with short messages.
 
 ## 📥 Setup
