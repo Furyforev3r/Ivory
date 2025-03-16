@@ -76,11 +76,14 @@ export async function registerUser(user) {
   }
 }
 
-export async function getRecentPosts(limit = 10) {
+export async function getRecentPosts(limit = 10, page = 1) {
   try {
+    const offset = (page - 1) * limit
+
     const postsSnapshot = await db.collection('Posts')
       .orderBy('uploadDate', 'desc')
       .limit(limit)
+      .offset(offset)
       .get()
 
     if (!postsSnapshot.empty) {
