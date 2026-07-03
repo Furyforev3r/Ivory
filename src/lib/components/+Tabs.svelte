@@ -11,7 +11,7 @@
     import Skeleton from "./+Skeleton.svelte"
     import { fade, scale } from "svelte/transition"
 
-    let userInfo
+    let userInfo: any
     let userAccount
 
     $: userInfo = $user

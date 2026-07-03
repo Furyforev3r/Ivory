@@ -13,6 +13,7 @@
     import Skeleton from "$lib/components/+Skeleton.svelte"
     import ImageCropModal from "$lib/components/+ImageCropModal.svelte"
     import { fade, scale } from "svelte/transition"
+    import { shareLink } from "$lib/client/utils/share"
 
     let userInfo: any
     let username: string
@@ -24,6 +25,9 @@
     let formErrors: any = {}
     let userPosts: any
     let loadedFor: string | null = null
+    let following = false
+    let followBusy = false
+    let hoveringFollow = false
 
     let avatarInput: HTMLInputElement
     let bannerInput: HTMLInputElement
@@ -64,6 +68,13 @@
 
             if (userInfo && userProfile.user.uid == userInfo.uid) {
                 canEdit = true
+            } else if (userInfo) {
+                try {
+                    const followResponse = await axios.get(`/api/getFollowStatus?targetUID=${userProfile.user.uid}&uid=${userInfo.uid}`)
+                    following = followResponse.data.following
+                } catch (error) {
+                    console.error(error)
+                }
             }
 
             let postsResponse = await axios.get(`api/getPostsByUserUID?userUID=${userProfile.user.uid}&limit=100`)
@@ -76,6 +87,37 @@
         } catch (error) {
             console.error(error)
         }
+    }
+
+    async function toggleFollow() {
+        if (followBusy || !userInfo) return
+
+        followBusy = true
+        const wasFollowing = following
+        following = !wasFollowing
+        userProfile.user.followersCount = (userProfile.user.followersCount ?? 0) + (following ? 1 : -1)
+
+        try {
+            const response = await axios.post(
+                `/api/toggleFollow?token=${userInfo.accessToken}&uid=${userInfo.uid}`,
+                { targetUID: userProfile.user.uid }
+            )
+            following = response.data.following
+        } catch (error) {
+            following = wasFollowing
+            userProfile.user.followersCount = (userProfile.user.followersCount ?? 0) + (wasFollowing ? 1 : -1)
+            toast.error("Could not update follow status")
+        } finally {
+            followBusy = false
+        }
+    }
+
+    async function handleShareProfile() {
+        const url = `${location.origin}/${userProfile.user.username}`
+        const result = await shareLink(url, `${userProfile.user.displayName} on Ivory`)
+
+        if (result === "copied") toast.success("Link copied to clipboard")
+        else if (result === "failed") toast.error("Could not share")
     }
 
     function toggleEditing() {
@@ -309,16 +351,30 @@
                 <div class="profileButtons">
                     {#if canEdit}
                         <button on:click={toggleEditing}>Edit profile</button>
+                    {:else if userInfo}
+                        <button
+                            class="followButton"
+                            class:following
+                            on:click={toggleFollow}
+                            on:mouseenter={() => hoveringFollow = true}
+                            on:mouseleave={() => hoveringFollow = false}
+                            disabled={followBusy}
+                        >
+                            {following ? (hoveringFollow ? "Unfollow" : "Following") : "Follow"}
+                        </button>
                     {/if}
-                    <button on:click={() => window.alert("To do")}>Share</button>
+                    <button on:click={handleShareProfile} aria-label="Share profile">
+                        <Icon icon="material-symbols:ios-share" width="18" height="18" />
+                        Share
+                    </button>
                 </div>
             </div>
             <h2>{userProfile.user.displayName}</h2>
             <p class="username">@{userProfile.user.username}</p>
             <div class="profileInfo">
-                <a href={`/${userProfile.user.username}/followers`}><span>0</span> Followers</a>
-                <a href={`/${userProfile.user.username}/following`}><span>0</span> Following</a>
-                <p><span>0</span> Posts</p>
+                <p><span>{userProfile.user.followingCount ?? 0}</span> Following</p>
+                <p><span>{userProfile.user.followersCount ?? 0}</span> Followers</p>
+                <p><span>{userPosts?.posts?.posts?.length ?? 0}</span> Posts</p>
             </div>
             <div class="profileDescription">
                 <p>{userProfile.user.description}</p>
@@ -559,17 +615,48 @@
 
     .profileButtons button {
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
         padding: 0.7rem 1.1rem;
         background: var(--background-base);
         border-radius: 999px;
         border: 0.1rem solid var(--background-elevated-press);
         color: var(--text-base);
         font-weight: 700;
-        transition: background 0.2s;
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
 
     .profileButtons button:hover {
         background: var(--background-highlight);
+    }
+
+    .followButton {
+        background: var(--text-base) !important;
+        color: var(--background-base) !important;
+        border-color: var(--text-base) !important;
+    }
+
+    .followButton:hover {
+        opacity: 0.85;
+    }
+
+    .followButton.following {
+        background: var(--background-base) !important;
+        color: var(--text-base) !important;
+        border-color: var(--background-elevated-press) !important;
+        opacity: 1;
+    }
+
+    .followButton.following:hover {
+        background: rgba(244, 33, 46, 0.08) !important;
+        color: var(--essential-negative) !important;
+        border-color: var(--essential-negative) !important;
+    }
+
+    .followButton:disabled {
+        opacity: 0.6;
+        cursor: default;
     }
 
     .profile h2 {
@@ -588,18 +675,13 @@
         margin-block: 0.3rem;
     }
 
-    .profileInfo a, .profileInfo p {
+    .profileInfo p {
         color: var(--text-subdued);
-        text-decoration: none;
     }
 
     .profileInfo span {
         font-weight: 700;
         color: var(--text-base);
-    }
-
-    .profileInfo a:hover {
-        text-decoration: underline;
     }
 
     .profileDescription {
@@ -648,7 +730,7 @@
             font-size: 18px;
         }
 
-        .profileInfo a , .profileInfo p, .profileDescription p, .contentButton {
+        .profileInfo p, .profileDescription p, .contentButton {
             font-size: 14px;
         }
     }

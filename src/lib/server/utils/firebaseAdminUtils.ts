@@ -99,7 +99,12 @@ export async function registerUser(user) {
     const getUser = await getUserByUID(user.uid)
 
     if (getUser.success === false && getUser.message === 'User not found') {
-      await db.collection('Users').doc(user.uid).set({ ...user, 'createdAt': fieldValue.serverTimestamp() })
+      await db.collection('Users').doc(user.uid).set({
+        followersCount: 0,
+        followingCount: 0,
+        ...user,
+        'createdAt': fieldValue.serverTimestamp()
+      })
 
       return { success: true, user }
     }
@@ -166,7 +171,7 @@ export async function getPostByUID(postUID: string) {
     const postDoc = await db.collection('Posts').doc(postUID).get()
 
     if (postDoc.exists) {
-      let post = postDoc.data()
+      const post = { id: postDoc.id, ...postDoc.data() }
 
       return { success: true, post: post }
     } else {
@@ -191,12 +196,277 @@ export async function newPost(post, token) {
       return { success: false, message: 'You do not have permission to make this post' }
     }
 
-    const newPost = await db.collection('Posts').add( { 'uploadDate': fieldValue.serverTimestamp(), ...post } )
+    const newPost = await db.collection('Posts').add({
+      likesCount: 0,
+      repliesCount: 0,
+      repostsCount: 0,
+      repostOf: null,
+      'uploadDate': fieldValue.serverTimestamp(),
+      ...post
+    })
 
     return { success: true, newPost }
   } catch (error) {
     console.error('Error making the post:', error)
     return { success: false, error: 'Failed to post' }
+  }
+}
+
+export async function toggleLike(postUID, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const postRef = db.collection('Posts').doc(postUID)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      return { success: false, message: 'Post not found' }
+    }
+
+    const likeRef = db.collection('Likes').doc(`${postUID}_${uid}`)
+    const likeDoc = await likeRef.get()
+
+    if (likeDoc.exists) {
+      await likeRef.delete()
+      await postRef.update({ likesCount: fieldValue.increment(-1) })
+      return { success: true, liked: false }
+    } else {
+      await likeRef.set({ postUID, userUID: uid, createdAt: fieldValue.serverTimestamp() })
+      await postRef.update({ likesCount: fieldValue.increment(1) })
+      return { success: true, liked: true }
+    }
+  } catch (error) {
+    console.error('Error toggling like:', error)
+    return { success: false, error: 'Failed to toggle like' }
+  }
+}
+
+export async function getPostViewerState(postUID, uid) {
+  if (!uid) {
+    return { success: true, liked: false, reposted: false }
+  }
+
+  try {
+    const [likeDoc, repostSnapshot] = await Promise.all([
+      db.collection('Likes').doc(`${postUID}_${uid}`).get(),
+      db.collection('Posts').where('userUID', '==', uid).where('repostOf', '==', postUID).limit(1).get()
+    ])
+
+    return {
+      success: true,
+      liked: likeDoc.exists,
+      reposted: !repostSnapshot.empty
+    }
+  } catch (error) {
+    console.error('Error fetching post viewer state:', error)
+    return { success: false, error: 'Failed to fetch post state' }
+  }
+}
+
+export async function newReply(postUID, content, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const postRef = db.collection('Posts').doc(postUID)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      return { success: false, message: 'Post not found' }
+    }
+
+    const reply = await db.collection('Replies').add({
+      postUID,
+      userUID: uid,
+      content,
+      uploadDate: fieldValue.serverTimestamp()
+    })
+
+    await postRef.update({ repliesCount: fieldValue.increment(1) })
+
+    return { success: true, id: reply.id }
+  } catch (error) {
+    console.error('Error creating reply:', error)
+    return { success: false, error: 'Failed to reply' }
+  }
+}
+
+export async function getReplies(postUID, limit = 20) {
+  try {
+    const repliesSnapshot = await db.collection('Replies')
+      .where('postUID', '==', postUID)
+      .orderBy('uploadDate', 'asc')
+      .limit(limit)
+      .get()
+
+    const replies = repliesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+
+    return { success: true, replies }
+  } catch (error) {
+    console.error('Error fetching replies:', error)
+    return { success: false, error: 'Failed to fetch replies' }
+  }
+}
+
+export async function createRepost(postUID, quote, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const postRef = db.collection('Posts').doc(postUID)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      return { success: false, message: 'Post not found' }
+    }
+
+    const existingRepost = await db.collection('Posts')
+      .where('userUID', '==', uid)
+      .where('repostOf', '==', postUID)
+      .limit(1)
+      .get()
+
+    if (!existingRepost.empty) {
+      return { success: false, message: 'You already reposted this' }
+    }
+
+    const repost = await db.collection('Posts').add({
+      userUID: uid,
+      content: quote || '',
+      image: false,
+      imageURL: '',
+      repostOf: postUID,
+      likesCount: 0,
+      repliesCount: 0,
+      repostsCount: 0,
+      uploadDate: fieldValue.serverTimestamp()
+    })
+
+    await postRef.update({ repostsCount: fieldValue.increment(1) })
+
+    return { success: true, id: repost.id }
+  } catch (error) {
+    console.error('Error creating repost:', error)
+    return { success: false, error: 'Failed to repost' }
+  }
+}
+
+export async function removeRepost(postUID, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const existingRepost = await db.collection('Posts')
+      .where('userUID', '==', uid)
+      .where('repostOf', '==', postUID)
+      .limit(1)
+      .get()
+
+    if (existingRepost.empty) {
+      return { success: false, message: 'Repost not found' }
+    }
+
+    await existingRepost.docs[0].ref.delete()
+    await db.collection('Posts').doc(postUID).update({ repostsCount: fieldValue.increment(-1) })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error removing repost:', error)
+    return { success: false, error: 'Failed to remove repost' }
+  }
+}
+
+export async function toggleFollow(targetUID, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  if (uid === targetUID) {
+    return { success: false, message: 'You cannot follow yourself' }
+  }
+
+  try {
+    const targetRef = db.collection('Users').doc(targetUID)
+    const targetDoc = await targetRef.get()
+
+    if (!targetDoc.exists) {
+      return { success: false, message: 'User not found' }
+    }
+
+    const followRef = db.collection('Follows').doc(`${uid}_${targetUID}`)
+    const followDoc = await followRef.get()
+    const meRef = db.collection('Users').doc(uid)
+
+    if (followDoc.exists) {
+      await followRef.delete()
+      await Promise.all([
+        targetRef.update({ followersCount: fieldValue.increment(-1) }),
+        meRef.update({ followingCount: fieldValue.increment(-1) })
+      ])
+      return { success: true, following: false }
+    } else {
+      await followRef.set({ followerUID: uid, followingUID: targetUID, createdAt: fieldValue.serverTimestamp() })
+      await Promise.all([
+        targetRef.update({ followersCount: fieldValue.increment(1) }),
+        meRef.update({ followingCount: fieldValue.increment(1) })
+      ])
+      return { success: true, following: true }
+    }
+  } catch (error) {
+    console.error('Error toggling follow:', error)
+    return { success: false, error: 'Failed to toggle follow' }
+  }
+}
+
+export async function getFollowStatus(targetUID, uid) {
+  if (!uid || uid === targetUID) {
+    return { success: true, following: false }
+  }
+
+  try {
+    const followDoc = await db.collection('Follows').doc(`${uid}_${targetUID}`).get()
+    return { success: true, following: followDoc.exists }
+  } catch (error) {
+    console.error('Error fetching follow status:', error)
+    return { success: false, error: 'Failed to fetch follow status' }
   }
 }
 

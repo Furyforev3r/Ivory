@@ -5,7 +5,7 @@
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import axios from "axios"
 
-    let timeline = []
+    let timeline: any[] = []
     let loading = false
     let initialLoading = true
     let hasMore = true
@@ -91,7 +91,7 @@
         border-inline: 1px solid var(--gainsboro);
         display: flex;
         flex-direction: column;
-        overflow: auto;
+        overflow: hidden;
     }
 
     .header {
@@ -112,6 +112,7 @@
 
     .posts {
         flex-grow: 1;
+        min-height: 0;
         overflow: auto;
     }
 
