@@ -7,7 +7,7 @@
     import { page } from "$app/stores"
     import axios from "axios"
     import { z } from "zod"
-    import toast, { Toaster } from "svelte-french-toast"
+    import toast from "svelte-french-toast"
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import Skeleton from "$lib/components/+Skeleton.svelte"
@@ -270,7 +270,6 @@
 </svelte:head>
 
 <svelte:window on:keydown={handleKeydown} />
-<Toaster />
 
 <input
     type="file"

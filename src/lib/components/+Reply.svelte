@@ -57,6 +57,10 @@
     }
 
     .userPic {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        flex-shrink: 0;
         border-radius: 50%;
         object-fit: cover;
         overflow: hidden;

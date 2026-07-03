@@ -4,10 +4,11 @@
     import { browser } from "$app/environment"
     import { user } from "$lib/client/hooks/loginState"
     import { account, ensureAccount } from "$lib/client/hooks/accountState"
-    import toast, { Toaster } from "svelte-french-toast"
+    import toast from "svelte-french-toast"
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import Reply from "$lib/components/+Reply.svelte"
+    import ReplySkeleton from "$lib/components/+ReplySkeleton.svelte"
     import Skeleton from "$lib/components/+Skeleton.svelte"
     import autosize from "svelte-autosize"
     import axios from "axios"
@@ -88,8 +89,6 @@
     <title>Ivory</title>
     <meta name="description" content="Ivory!" />
 </svelte:head>
-
-<Toaster />
 <div class="content">
     <div class="header">
         <a href="/" class="back" aria-label="Back">
@@ -122,7 +121,7 @@
         <div class="repliesList">
             {#if repliesLoading}
                 {#each Array(3) as _}
-                    <Skeleton width="100%" height="60px" radius="0" />
+                    <ReplySkeleton />
                 {/each}
             {:else if replies.length === 0}
                 <p class="empty">No replies yet. Be the first to reply!</p>

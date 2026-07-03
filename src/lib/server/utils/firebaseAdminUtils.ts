@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase-admin/firestore"
 import { db, auth, fieldValue, bucket } from "$lib/server/services/firebaseAdmin"
 
 export async function verifyToken(token) {
@@ -149,15 +150,15 @@ export async function registerUser(user) {
   }
 }
 
-export async function getRecentPosts(limit = 10, page = 1) {
+export async function getRecentPosts(limit = 10, cursorMillis = null) {
   try {
-    const offset = (page - 1) * limit
+    let query = db.collection('Posts').orderBy('uploadDate', 'desc')
 
-    const postsSnapshot = await db.collection('Posts')
-      .orderBy('uploadDate', 'desc')
-      .limit(limit)
-      .offset(offset)
-      .get()
+    if (cursorMillis) {
+      query = query.startAfter(Timestamp.fromMillis(cursorMillis))
+    }
+
+    const postsSnapshot = await query.limit(limit).get()
 
     if (!postsSnapshot.empty) {
       const posts = postsSnapshot.docs.map(doc => ({
@@ -353,16 +354,19 @@ export async function newReply(postUID, content, uid, token) {
 
 export async function getReplies(postUID, limit = 20) {
   try {
+    // Sorted in memory instead of via .orderBy() so this doesn't depend on a
+    // Firestore composite index existing for (postUID, uploadDate).
     const repliesSnapshot = await db.collection('Replies')
       .where('postUID', '==', postUID)
-      .orderBy('uploadDate', 'asc')
-      .limit(limit)
       .get()
 
-    const replies = repliesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
+    const replies = (repliesSnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as any[])
+      .sort((a, b) => (a.uploadDate?.toMillis?.() || 0) - (b.uploadDate?.toMillis?.() || 0))
+      .slice(0, limit)
 
     return { success: true, replies }
   } catch (error) {
@@ -529,21 +533,24 @@ export async function getNotifications(uid, token, limit = 30) {
   }
 
   try {
+    // Sorted in memory instead of via .orderBy() so this doesn't depend on a
+    // Firestore composite index existing for (recipientUID, createdAt).
     const [notificationsSnapshot, userDoc] = await Promise.all([
       db.collection('Notifications')
         .where('recipientUID', '==', uid)
-        .orderBy('createdAt', 'desc')
-        .limit(limit)
         .get(),
       db.collection('Users').doc(uid).get()
     ])
 
-    const notifications = notificationsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
+    const notifications = (notificationsSnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as any[])
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+      .slice(0, limit)
 
-    const lastRead = userDoc.exists ? (userDoc.data().notificationsLastRead || null) : null
+    const lastRead = userDoc.exists ? (userDoc.data()!.notificationsLastRead || null) : null
 
     return { success: true, notifications, lastRead }
   } catch (error) {

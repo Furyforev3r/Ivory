@@ -6,7 +6,7 @@
     import { logout } from "$lib/client/utils/firebaseUtils"
     import autosize from "svelte-autosize"
     import { z } from "zod"
-    import toast, { Toaster } from "svelte-french-toast"
+    import toast from "svelte-french-toast"
     import { page } from "$app/stores"
     import Skeleton from "./+Skeleton.svelte"
     import { fade, scale } from "svelte/transition"
@@ -157,7 +157,6 @@
 
 <svelte:window on:keydown={handleKeydown} />
 <nav class="tabs">
-    <Toaster />
     {#if post}
         <div class="postToast" on:click|self={togglePost} role="presentation" transition:fade={{ duration: 150 }}>
             <div class="postToastContainer" transition:scale={{ duration: 150, start: 0.96 }}>

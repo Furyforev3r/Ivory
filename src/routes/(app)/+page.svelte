@@ -1,17 +1,22 @@
 <script lang="ts">
     import { onMount } from "svelte"
-    import Icon from "@iconify/svelte"
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
+    import toast from "svelte-french-toast"
     import axios from "axios"
 
     let timeline: any[] = []
     let loading = false
     let initialLoading = true
     let hasMore = true
-    let page = 1
     const limit = 10
     let postsEl: HTMLDivElement
+
+    function cursorFromLastPost() {
+        if (timeline.length === 0) return null
+        const uploadDate = timeline[timeline.length - 1].uploadDate
+        return Math.floor(uploadDate._seconds * 1000 + (uploadDate._nanoseconds || 0) / 1e6)
+    }
 
     onMount(() => {
         loadMorePosts()
@@ -21,23 +26,27 @@
         if (loading || !hasMore) return
 
         loading = true
+        const cursor = cursorFromLastPost()
 
         try {
-            let response = await axios.get(`api/getRecentPosts?limit=${limit}&page=${page}`)
+            let response = await axios.get(`api/getRecentPosts?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`)
 
             if (response.status == 200 || response.status == 201) {
                 const newPosts = response.data.posts.posts
                 if (newPosts.length > 0) {
-                    timeline = [...timeline, ...newPosts]
-                    page++
+                    const existingIds = new Set(timeline.map((post: any) => post.id))
+                    timeline = [...timeline, ...newPosts.filter((post: any) => !existingIds.has(post.id))]
+                    if (newPosts.length < limit) hasMore = false
                 } else {
                     hasMore = false
                 }
             } else {
                 console.error(response.data.error)
+                toast.error("Couldn't load more posts")
             }
         } catch (error) {
             console.error(error)
+            toast.error("Couldn't load more posts")
         } finally {
             loading = false
             initialLoading = false
@@ -73,9 +82,7 @@
             {/each}
 
             {#if loading && hasMore}
-                <div class="loading-more">
-                    <Icon icon="svg-spinners:3-dots-move" width="2.5rem" height="2.5rem" />
-                </div>
+                <PostSkeleton />
             {/if}
 
             {#if !hasMore && timeline.length === 0}
@@ -124,13 +131,6 @@
     .posts::-webkit-scrollbar-thumb {
         background: var(--background-elevated-press);
         border-radius: 0.8rem;
-    }
-
-    .loading-more {
-        display: grid;
-        place-items: center;
-        padding: 1rem;
-        color: var(--text-subdued);
     }
 
     .empty {

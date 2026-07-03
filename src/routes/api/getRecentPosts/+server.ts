@@ -4,11 +4,11 @@ import { getRecentPosts } from "$lib/server/utils/firebaseAdminUtils"
 export async function GET({ url }) {
   try {
     const limitParam = url.searchParams.get('limit')
-    const pageParam = url.searchParams.get('page')
-    const limit = parseInt(limitParam)
-    const page = parseInt(pageParam)
+    const cursorParam = url.searchParams.get('cursor')
+    const limit = limitParam ? parseInt(limitParam) : 10
+    const cursor = cursorParam ? parseInt(cursorParam) : null
 
-    const posts = await getRecentPosts(limit, page)
+    const posts = await getRecentPosts(limit, cursor)
 
     if (posts.success) {
       return json({ posts: posts }, { status: 200 })
