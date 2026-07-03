@@ -17,10 +17,10 @@
     </form>
     <ul class="discoverList">
         <li>
-            <a href="/discover">Discover</a>
+            <a href="/">Discover</a>
         </li>
         <li>
-            <a href="">Following</a>
+            <span class="disabled">Following <em>Soon</em></span>
         </li>
     </ul>
     <ul class="terms">
@@ -60,22 +60,29 @@
     .search {
         display: flex;
         flex-direction: row;
-        gap: 0.3rem;
+        gap: 0.5rem;
         align-items: center;
-        padding: 0.5rem;
+        padding: 0.6rem 0.9rem;
         background: var(--background-elevated-highlight);
-        border: 0.1rem solid var(--background-elevated-press);
+        border: 0.1rem solid transparent;
         color: var(--text-subdued);
-        border-radius: 1rem;
+        border-radius: 999px;
+        transition: border-color 0.2s;
+    }
+
+    .search:focus-within {
+        border-color: var(--essential-announcement);
+        background: var(--background-base);
     }
 
     .search input {
-        padding: 0.4rem;
+        padding: 0.2rem;
         width: 100%;
         height: 100%;
         background: none;
         border: none;
         font-size: 14px;
+        color: var(--text-base);
     }
 
     .search input:focus {
@@ -99,6 +106,24 @@
 
     .discoverList li a:hover {
         text-decoration: underline;
+    }
+
+    .disabled {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-subdued);
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .disabled em {
+        font-style: normal;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 0.1rem 0.4rem;
+        border-radius: 999px;
+        background: var(--background-elevated-highlight);
     }
 
     .terms {

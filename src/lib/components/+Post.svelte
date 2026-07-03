@@ -34,7 +34,7 @@
         <span class="loading"></span>
     {:else if user && post}
         <a href={`/${user.username}`}>
-            <img class="userPic" alt={user.displayName} src={user.photoURL} width="52px" height="52px" />
+            <img class="userPic" alt={user.displayName} src={user.photoURL} width="52px" height="52px" loading="lazy" decoding="async" />
         </a>
         <div class="postContentContainer">
             <div class="postInfo">
@@ -46,7 +46,7 @@
             <div class="postContent">
                 <p class="content">{post.content}</p>
                 {#if post.image}
-                    <img class="postImage" src={post.imageURL} alt="...">
+                    <img class="postImage" src={post.imageURL} alt="Post attachment" loading="lazy" decoding="async">
                 {/if}
             </div>
             <div class="postIcons">
