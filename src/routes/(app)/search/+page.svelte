@@ -4,6 +4,10 @@
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import axios from "axios"
+    import { page } from "$app/stores"
+    import { goto } from "$app/navigation"
+    import { user } from "$lib/client/hooks/loginState"
+    import { searchHistory, addSearchHistory, removeSearchHistoryItem } from "$lib/client/utils/searchHistory"
 
     let timeline: any = null
     let timelineLoading = true
@@ -12,6 +16,19 @@
     let hasSearched = false
     let searchQuery = ""
     let isLoading = false
+    let showHistory = false
+    let followedUIDs: Record<string, boolean> = {}
+    let followBusy: Record<string, boolean> = {}
+
+    let userInfo: any
+    $: userInfo = $user
+
+    let lastRunQuery: string | null = null
+    $: queryParam = $page.url.searchParams.get("q")
+    $: if (queryParam && queryParam !== lastRunQuery) {
+        searchQuery = queryParam
+        runSearch(queryParam)
+    }
 
     onMount(async () => {
         try {
@@ -29,16 +46,17 @@
         }
     })
 
-    async function handleSearch(event: Event) {
-        event.preventDefault()
+    async function runSearch(queryValue: string) {
+        const trimmed = queryValue.trim()
+        if (!trimmed) return
 
-        if (!searchQuery.trim()) return
-
+        lastRunQuery = trimmed
         isLoading = true
         hasSearched = true
+        showHistory = false
 
         try {
-            const response = await axios.get(`/api/search?query=${encodeURIComponent(searchQuery)}`)
+            const response = await axios.get(`/api/search?query=${encodeURIComponent(trimmed)}`)
 
             if (response.status === 200) {
                 searchResults = response.data.results
@@ -52,6 +70,40 @@
         }
     }
 
+    function handleSearch(event: Event) {
+        event.preventDefault()
+
+        if (!searchQuery.trim()) return
+
+        addSearchHistory(searchQuery)
+        goto(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+    }
+
+    function useHistoryItem(item: string) {
+        searchQuery = item
+        addSearchHistory(item)
+        goto(`/search?q=${encodeURIComponent(item)}`)
+    }
+
+    async function toggleFollowResult(result: any) {
+        if (followBusy[result.uid] || !userInfo) return
+
+        followBusy = { ...followBusy, [result.uid]: true }
+        const wasFollowing = !!followedUIDs[result.uid]
+
+        try {
+            const response = await axios.post(
+                `/api/toggleFollow?token=${userInfo.accessToken}&uid=${userInfo.uid}`,
+                { targetUID: result.uid }
+            )
+            followedUIDs = { ...followedUIDs, [result.uid]: response.data.following }
+        } catch (error) {
+            followedUIDs = { ...followedUIDs, [result.uid]: wasFollowing }
+        } finally {
+            followBusy = { ...followBusy, [result.uid]: false }
+        }
+    }
+
     function truncateDescription(description: string): string {
         return description.length > 100 ? description.slice(0, 45) + '...' : description
     }
@@ -61,8 +113,10 @@
     <title>Ivory - Search</title>
 </svelte:head>
 
+<svelte:window on:click={() => showHistory = false} />
+
 <div class="content">
-    <form class="searchForm" on:submit|preventDefault={handleSearch}>
+    <form class="searchForm" on:submit|preventDefault|stopPropagation={handleSearch}>
         <div class="search">
             <Icon icon="material-symbols:search" width="24px" height="24px" />
             <input
@@ -70,9 +124,26 @@
                 name="search"
                 placeholder="Search Ivory..."
                 bind:value={searchQuery}
+                on:click|stopPropagation
+                on:focus={() => showHistory = true}
                 required
             >
         </div>
+        {#if showHistory && $searchHistory.length > 0}
+            <div class="historyDropdown" on:click|stopPropagation role="presentation">
+                {#each $searchHistory as item}
+                    <div class="historyItem">
+                        <button type="button" class="historyText" on:click={() => useHistoryItem(item)}>
+                            <Icon icon="material-symbols:history" width="18" height="18" />
+                            {item}
+                        </button>
+                        <button type="button" class="historyRemove" on:click={() => removeSearchHistoryItem(item)} aria-label="Remove">
+                            <Icon icon="material-symbols:close-small-rounded" width="16" height="16" />
+                        </button>
+                    </div>
+                {/each}
+            </div>
+        {/if}
     </form>
 
     {#if isLoading}
@@ -96,7 +167,16 @@
                                     <p class="displayName">{result.displayName}</p>
                                     <p class="username">@{result.username}</p>
                                 </div>
-                                <button class="followButton">Follow</button>
+                                {#if userInfo && result.uid !== userInfo.uid}
+                                    <button
+                                        class="followButton"
+                                        class:following={followedUIDs[result.uid]}
+                                        disabled={followBusy[result.uid]}
+                                        on:click|preventDefault|stopPropagation={() => toggleFollowResult(result)}
+                                    >
+                                        {followedUIDs[result.uid] ? "Following" : "Follow"}
+                                    </button>
+                                {/if}
                             </div>
                             <p class="description">{truncateDescription(result.description)}</p>
                         </div>
@@ -152,11 +232,65 @@
     }
 
     .searchForm {
-        padding-block: 1rem;
         position: sticky;
         top: 0;
+        padding-block: 1rem;
         background: var(--background-base);
         z-index: 10;
+    }
+
+    .historyDropdown {
+        position: absolute;
+        top: calc(100% - 0.5rem);
+        left: 0;
+        right: 0;
+        background: var(--background-base);
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        overflow: hidden;
+        z-index: 30;
+    }
+
+    .historyItem {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .historyItem:hover {
+        background: var(--background-highlight);
+    }
+
+    .historyText {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.7rem 0.9rem;
+        border: none;
+        background: none;
+        color: var(--text-base);
+        font-size: 14px;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .historyRemove {
+        display: grid;
+        place-items: center;
+        padding: 0.4rem;
+        margin-right: 0.5rem;
+        border: none;
+        background: none;
+        border-radius: 999px;
+        color: var(--text-subdued);
+        cursor: pointer;
+    }
+
+    .historyRemove:hover {
+        background: var(--background-elevated-press);
     }
 
     .search {
@@ -260,6 +394,7 @@
         min-width: 52px;
         border-radius: 50%;
         object-fit: cover;
+        overflow: hidden;
         border: 1px solid var(--gainsboro);
         background: var(--background-elevated-highlight);
     }
@@ -277,6 +412,17 @@
 
     .followButton:hover {
         opacity: 0.85;
+    }
+
+    .followButton.following {
+        background: none;
+        border: 0.1rem solid var(--background-elevated-press);
+        color: var(--text-base);
+    }
+
+    .followButton:disabled {
+        opacity: 0.5;
+        cursor: default;
     }
 
     .terms {

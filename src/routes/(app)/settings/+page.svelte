@@ -124,6 +124,7 @@
         height: 52px;
         border-radius: 50%;
         object-fit: cover;
+        overflow: hidden;
         border: 1px solid var(--gainsboro);
         background: var(--background-elevated-highlight);
     }

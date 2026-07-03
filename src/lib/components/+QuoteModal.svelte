@@ -139,6 +139,7 @@
     .embeddedHead img {
         border-radius: 50%;
         object-fit: cover;
+        overflow: hidden;
         background: var(--background-elevated-highlight);
     }
 

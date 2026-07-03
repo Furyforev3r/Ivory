@@ -28,6 +28,8 @@
     let following = false
     let followBusy = false
     let hoveringFollow = false
+    let postNotifSubscribed = false
+    let postNotifBusy = false
 
     let avatarInput: HTMLInputElement
     let bannerInput: HTMLInputElement
@@ -70,8 +72,12 @@
                 canEdit = true
             } else if (userInfo) {
                 try {
-                    const followResponse = await axios.get(`/api/getFollowStatus?targetUID=${userProfile.user.uid}&uid=${userInfo.uid}`)
+                    const [followResponse, notifResponse] = await Promise.all([
+                        axios.get(`/api/getFollowStatus?targetUID=${userProfile.user.uid}&uid=${userInfo.uid}`),
+                        axios.get(`/api/getPostNotificationStatus?targetUID=${userProfile.user.uid}&uid=${userInfo.uid}`)
+                    ])
                     following = followResponse.data.following
+                    postNotifSubscribed = notifResponse.data.subscribed
                 } catch (error) {
                     console.error(error)
                 }
@@ -109,6 +115,28 @@
             toast.error("Could not update follow status")
         } finally {
             followBusy = false
+        }
+    }
+
+    async function togglePostNotif() {
+        if (postNotifBusy || !userInfo) return
+
+        postNotifBusy = true
+        const previous = postNotifSubscribed
+        postNotifSubscribed = !previous
+
+        try {
+            const response = await axios.post(
+                `/api/togglePostNotifications?token=${userInfo.accessToken}&uid=${userInfo.uid}`,
+                { targetUID: userProfile.user.uid }
+            )
+            postNotifSubscribed = response.data.subscribed
+            toast.success(postNotifSubscribed ? "You'll be notified of new posts" : "Post notifications turned off")
+        } catch (error) {
+            postNotifSubscribed = previous
+            toast.error("Could not update notification settings")
+        } finally {
+            postNotifBusy = false
         }
     }
 
@@ -353,6 +381,16 @@
                         <button on:click={toggleEditing}>Edit profile</button>
                     {:else if userInfo}
                         <button
+                            class="notifBellButton"
+                            class:subscribed={postNotifSubscribed}
+                            on:click={togglePostNotif}
+                            disabled={postNotifBusy}
+                            aria-label={postNotifSubscribed ? "Turn off post notifications" : "Get notified of new posts"}
+                            title={postNotifSubscribed ? "Turn off post notifications" : "Get notified of new posts"}
+                        >
+                            <Icon icon={postNotifSubscribed ? "material-symbols:notifications-active-rounded" : "material-symbols:notifications-outline-rounded"} width="18" height="18" />
+                        </button>
+                        <button
                             class="followButton"
                             class:following
                             on:click={toggleFollow}
@@ -594,6 +632,7 @@
         cursor: pointer;
         height: 100px;
         width: 100px;
+        overflow: hidden;
         object-fit: cover;
         border-radius: 50%;
         border: 4px solid var(--background-base);
@@ -655,6 +694,22 @@
     }
 
     .followButton:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .notifBellButton {
+        padding: 0.7rem !important;
+        display: grid !important;
+        place-items: center;
+    }
+
+    .notifBellButton.subscribed {
+        color: var(--essential-announcement) !important;
+        border-color: var(--essential-announcement) !important;
+    }
+
+    .notifBellButton:disabled {
         opacity: 0.6;
         cursor: default;
     }
@@ -732,6 +787,25 @@
 
         .profileInfo p, .profileDescription p, .contentButton {
             font-size: 14px;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .topInfo {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.8rem;
+        }
+
+        .profile img {
+            height: 84px;
+            width: 84px;
+            margin-top: -42px;
+        }
+
+        .profileButtons {
+            width: 100%;
+            justify-content: flex-end;
         }
     }
 </style>

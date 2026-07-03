@@ -203,6 +203,7 @@
         height: 40px;
         border-radius: 50%;
         object-fit: cover;
+        overflow: hidden;
         background: var(--background-elevated-highlight);
         border: 1px solid var(--gainsboro);
     }

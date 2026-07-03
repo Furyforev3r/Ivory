@@ -9,6 +9,32 @@ export async function verifyToken(token) {
   }
 }
 
+async function createNotification(recipientUID, type, actorUID, postUID = null) {
+  if (!recipientUID || recipientUID === actorUID) return
+
+  try {
+    await db.collection('Notifications').add({
+      recipientUID,
+      type,
+      actorUID,
+      postUID,
+      createdAt: fieldValue.serverTimestamp()
+    })
+  } catch (error) {
+    console.error('Error creating notification:', error)
+  }
+}
+
+const EXTENSION_BY_TYPE = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov'
+}
+
 export async function uploadUserImage(uid, token, kind, buffer, contentType) {
   const tokenVerification = await verifyToken(token)
 
@@ -17,16 +43,23 @@ export async function uploadUserImage(uid, token, kind, buffer, contentType) {
   }
 
   if (tokenVerification.uid !== uid) {
-    return { success: false, message: 'You do not have permission to edit this profile' }
+    return { success: false, message: 'You do not have permission to do this' }
   }
 
-  if (kind !== 'avatar' && kind !== 'banner') {
+  if (kind !== 'avatar' && kind !== 'banner' && kind !== 'post') {
     return { success: false, message: 'Invalid image kind' }
   }
 
+  const extension = EXTENSION_BY_TYPE[contentType]
+
+  if (!extension) {
+    return { success: false, message: 'Unsupported media type' }
+  }
+
   try {
-    const extension = contentType === 'image/png' ? 'png' : 'jpg'
-    const filePath = `users/${uid}/${kind}.${extension}`
+    const filePath = kind === 'post'
+      ? `posts/${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`
+      : `users/${uid}/${kind}.${extension}`
     const file = bucket.file(filePath)
 
     await file.save(buffer, {
@@ -205,6 +238,16 @@ export async function newPost(post, token) {
       ...post
     })
 
+    const subscribersSnapshot = await db.collection('PostNotifSubs')
+      .where('targetUID', '==', post.userUID)
+      .get()
+
+    await Promise.all(
+      subscribersSnapshot.docs.map(doc =>
+        createNotification(doc.data().subscriberUID, 'post', post.userUID, newPost.id)
+      )
+    )
+
     return { success: true, newPost }
   } catch (error) {
     console.error('Error making the post:', error)
@@ -241,6 +284,7 @@ export async function toggleLike(postUID, uid, token) {
     } else {
       await likeRef.set({ postUID, userUID: uid, createdAt: fieldValue.serverTimestamp() })
       await postRef.update({ likesCount: fieldValue.increment(1) })
+      await createNotification(postDoc.data()!.userUID, 'like', uid, postUID)
       return { success: true, liked: true }
     }
   } catch (error) {
@@ -298,6 +342,7 @@ export async function newReply(postUID, content, uid, token) {
     })
 
     await postRef.update({ repliesCount: fieldValue.increment(1) })
+    await createNotification(postDoc.data()!.userUID, 'reply', uid, postUID)
 
     return { success: true, id: reply.id }
   } catch (error) {
@@ -368,6 +413,7 @@ export async function createRepost(postUID, quote, uid, token) {
     })
 
     await postRef.update({ repostsCount: fieldValue.increment(1) })
+    await createNotification(postDoc.data()!.userUID, 'repost', uid, postUID)
 
     return { success: true, id: repost.id }
   } catch (error) {
@@ -448,6 +494,7 @@ export async function toggleFollow(targetUID, uid, token) {
         targetRef.update({ followersCount: fieldValue.increment(1) }),
         meRef.update({ followingCount: fieldValue.increment(1) })
       ])
+      await createNotification(targetUID, 'follow', uid)
       return { success: true, following: true }
     }
   } catch (error) {
@@ -467,6 +514,133 @@ export async function getFollowStatus(targetUID, uid) {
   } catch (error) {
     console.error('Error fetching follow status:', error)
     return { success: false, error: 'Failed to fetch follow status' }
+  }
+}
+
+export async function getNotifications(uid, token, limit = 30) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const [notificationsSnapshot, userDoc] = await Promise.all([
+      db.collection('Notifications')
+        .where('recipientUID', '==', uid)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get(),
+      db.collection('Users').doc(uid).get()
+    ])
+
+    const notifications = notificationsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+
+    const lastRead = userDoc.exists ? (userDoc.data().notificationsLastRead || null) : null
+
+    return { success: true, notifications, lastRead }
+  } catch (error) {
+    console.error('Error fetching notifications:', error)
+    return { success: false, error: 'Failed to fetch notifications' }
+  }
+}
+
+export async function markNotificationsSeen(uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    await db.collection('Users').doc(uid).update({ notificationsLastRead: fieldValue.serverTimestamp() })
+    return { success: true }
+  } catch (error) {
+    console.error('Error marking notifications seen:', error)
+    return { success: false, error: 'Failed to update notifications' }
+  }
+}
+
+export async function togglePostNotifications(targetUID, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  if (uid === targetUID) {
+    return { success: false, message: 'You cannot subscribe to your own posts' }
+  }
+
+  try {
+    const subRef = db.collection('PostNotifSubs').doc(`${uid}_${targetUID}`)
+    const subDoc = await subRef.get()
+
+    if (subDoc.exists) {
+      await subRef.delete()
+      return { success: true, subscribed: false }
+    } else {
+      await subRef.set({ subscriberUID: uid, targetUID, createdAt: fieldValue.serverTimestamp() })
+      return { success: true, subscribed: true }
+    }
+  } catch (error) {
+    console.error('Error toggling post notifications:', error)
+    return { success: false, error: 'Failed to toggle post notifications' }
+  }
+}
+
+export async function getPostNotificationStatus(targetUID, uid) {
+  if (!uid || uid === targetUID) {
+    return { success: true, subscribed: false }
+  }
+
+  try {
+    const subDoc = await db.collection('PostNotifSubs').doc(`${uid}_${targetUID}`).get()
+    return { success: true, subscribed: subDoc.exists }
+  } catch (error) {
+    console.error('Error fetching post notification status:', error)
+    return { success: false, error: 'Failed to fetch post notification status' }
+  }
+}
+
+export async function getSuggestedUsers(uid, limit = 3) {
+  try {
+    const [usersSnapshot, followingSnapshot] = await Promise.all([
+      db.collection('Users').orderBy('createdAt', 'desc').limit(limit + 15).get(),
+      uid ? db.collection('Follows').where('followerUID', '==', uid).get() : Promise.resolve(null)
+    ])
+
+    const followingUIDs = new Set(
+      followingSnapshot ? followingSnapshot.docs.map(doc => doc.data().followingUID) : []
+    )
+
+    const users = usersSnapshot.docs
+      .filter(doc => doc.id !== uid && !followingUIDs.has(doc.id))
+      .slice(0, limit)
+      .map(doc => {
+        let { email, settings, emailVerified, ...userData } = doc.data()
+        return { ...userData, uid: doc.id }
+      })
+
+    return { success: true, users }
+  } catch (error) {
+    console.error('Error fetching suggested users:', error)
+    return { success: false, error: 'Failed to fetch suggested users' }
   }
 }
 

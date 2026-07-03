@@ -221,7 +221,11 @@
                     {#if post.content}
                         <p class="content">{post.content}</p>
                     {/if}
-                    {#if post.image}
+                    {#if post.image && post.mediaType === "video"}
+                        <div class="postVideoWrap" on:click|stopPropagation role="presentation">
+                            <video class="postVideo" src={post.imageURL} controls preload="metadata"></video>
+                        </div>
+                    {:else if post.image}
                         <img class="postImage" src={post.imageURL} alt="Post attachment" loading="lazy" decoding="async">
                     {/if}
                     {#if isQuoteRepost}
@@ -233,7 +237,11 @@
                                     <p class="username">@{originalAuthor.username}</p>
                                 </div>
                                 <p class="content">{originalPost.content}</p>
-                                {#if originalPost.image}
+                                {#if originalPost.image && originalPost.mediaType === "video"}
+                                    <div class="postVideoWrap" on:click|stopPropagation role="presentation">
+                                        <video class="postVideo" src={originalPost.imageURL} controls preload="metadata"></video>
+                                    </div>
+                                {:else if originalPost.image}
                                     <img class="postImage" src={originalPost.imageURL} alt="Quoted attachment" loading="lazy" decoding="async">
                                 {/if}
                             </div>
@@ -336,6 +344,7 @@
         min-width: 52px;
         border-radius: 50%;
         object-fit: cover;
+        overflow: hidden;
         border: 1px solid var(--gainsboro);
         background: var(--background-elevated-highlight);
     }
@@ -383,6 +392,21 @@
         border: 1px solid var(--gainsboro);
     }
 
+    .postVideoWrap {
+        margin-top: 0.3rem;
+        max-width: 100%;
+        border-radius: 0.8rem;
+        overflow: hidden;
+        border: 1px solid var(--gainsboro);
+        background: #000;
+    }
+
+    .postVideo {
+        display: block;
+        width: 100%;
+        max-height: 400px;
+    }
+
     .embeddedPost {
         margin-top: 0.5rem;
         border: 1px solid var(--gainsboro);
@@ -403,6 +427,7 @@
     .embeddedHead img {
         border-radius: 50%;
         object-fit: cover;
+        overflow: hidden;
         background: var(--background-elevated-highlight);
     }
 

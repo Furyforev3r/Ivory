@@ -10,6 +10,8 @@
     import { page } from "$app/stores"
     import Skeleton from "./+Skeleton.svelte"
     import { fade, scale } from "svelte/transition"
+    import { unreadCount, ensureNotifications } from "$lib/client/hooks/notificationsState"
+    import ImageCropModal from "./+ImageCropModal.svelte"
 
     let userInfo: any
     let userAccount
@@ -17,20 +19,24 @@
     $: userInfo = $user
     $: userAccount = $account
     $: if (userInfo && userInfo !== "Loading...") ensureAccount(userInfo.uid)
+    $: if (userInfo && userInfo !== "Loading...") ensureNotifications(userInfo.uid, userInfo.accessToken)
     $: currentPath = $page.url.pathname
 
     let post = false
-    let image = false
 
     let postValue = ""
-    let imageURL = ""
+    let mediaInput: HTMLInputElement
+    let cropFile: File | null = null
+    let uploadedMediaURL = ""
+    let mediaType: "gif" | "video" | null = null
+    let mediaPreviewURL = ""
+    let uploadingMedia = false
 
     let errorMessage = ""
     let posting = false
 
     const postSchema = z.object({
         postValue: z.string().min(1, "Post cannot be empty").max(300, "Post cannot exceed 300 characters"),
-        imageURL: z.string().url("Invalid URL").or(z.literal("")).optional(),
     })
 
     function togglePost() {
@@ -39,45 +45,103 @@
     }
 
     function handleKeydown(event: KeyboardEvent) {
-        if (event.key === "Escape" && post) {
+        if (event.key === "Escape" && post && !cropFile) {
             togglePost()
         }
-    }
-
-    function toggleImage() {
-        image = !image
     }
 
     function isActive(path: string) {
         return path === "/" ? currentPath === "/" : currentPath.startsWith(path)
     }
 
-    async function validateAndPost() {
-        if (!imageURL.trim() && image) {
-            errorMessage = "You must provide an image URL to post."
-            return
-        }
+    function openMediaPicker() {
+        mediaInput.click()
+    }
 
-        const validationResult = postSchema.safeParse({ postValue, imageURL })
+    function handleMediaSelected(event: Event) {
+        const input = event.target as HTMLInputElement
+        const file = input.files?.[0]
+        input.value = ""
+
+        if (!file) return
+
+        if (file.type === "image/gif") {
+            uploadMedia(file, "gif")
+        } else if (file.type.startsWith("video/")) {
+            if (file.size > 4 * 1024 * 1024) {
+                toast.error("Video must be 4MB or smaller")
+                return
+            }
+            uploadMedia(file, "video")
+        } else if (file.type.startsWith("image/")) {
+            cropFile = file
+        } else {
+            toast.error("Unsupported file type")
+        }
+    }
+
+    async function handleCropped(event: CustomEvent<{ blob: Blob }>) {
+        cropFile = null
+        await uploadMedia(event.detail.blob, null)
+    }
+
+    async function uploadMedia(fileOrBlob: File | Blob, type: "gif" | "video" | null) {
+        uploadingMedia = true
+        mediaPreviewURL = URL.createObjectURL(fileOrBlob)
+        mediaType = type
+
+        try {
+            const formData = new FormData()
+            formData.append("image", fileOrBlob, `post.${type === "video" ? "mp4" : type === "gif" ? "gif" : "jpg"}`)
+
+            const response = await axios.post(
+                `/api/uploadImage?token=${userInfo.accessToken}&uid=${userInfo.uid}&kind=post`,
+                formData
+            )
+
+            uploadedMediaURL = response.data.url
+        } catch (error) {
+            toast.error("Could not upload media")
+            removeMedia()
+        } finally {
+            uploadingMedia = false
+        }
+    }
+
+    function removeMedia() {
+        if (mediaPreviewURL) URL.revokeObjectURL(mediaPreviewURL)
+        mediaPreviewURL = ""
+        uploadedMediaURL = ""
+        mediaType = null
+    }
+
+    function cancelCrop() {
+        cropFile = null
+    }
+
+    async function validateAndPost() {
+        const validationResult = postSchema.safeParse({ postValue })
 
         if (!validationResult.success) {
             errorMessage = validationResult.error.errors[0]?.message
+        } else if (uploadingMedia) {
+            errorMessage = "Wait for the media upload to finish"
         } else {
             posting = true
             try {
                 let response = await axios.post(`api/newPost?token=${userInfo.accessToken}`, {
                     'userUID': userInfo.uid,
                     'content': postValue,
-                    'image': image,
-                    'imageURL': imageURL
+                    'image': !!uploadedMediaURL,
+                    'imageURL': uploadedMediaURL,
+                    'mediaType': mediaType
                 })
 
                 if (response.status == 200 || response.status == 201) {
                     toast.success(response.data.message)
                     errorMessage = ''
-                    image = false
                     postValue = ''
-                    imageURL = ''
+                    removeMedia()
                     post = false
                 } else {
                     toast.error(response.data.error)
@@ -117,28 +181,56 @@
                     {/if}
                     <textarea use:autosize maxlength="300" placeholder="What's happening?" bind:value={postValue}></textarea>
                 </div>
+                {#if mediaPreviewURL}
+                    <div class="mediaPreview">
+                        {#if mediaType === "video"}
+                            <video src={mediaPreviewURL} controls></video>
+                        {:else}
+                            <img src={mediaPreviewURL} alt="Selected media" />
+                        {/if}
+                        {#if uploadingMedia}
+                            <div class="mediaOverlay">
+                                <Icon icon="svg-spinners:3-dots-move" width="28" height="28" color="#fff" />
+                            </div>
+                        {/if}
+                        <button type="button" class="removeMediaButton" on:click={removeMedia} aria-label="Remove media">
+                            <Icon icon="material-symbols:close-rounded" width="18" height="18" />
+                        </button>
+                    </div>
+                {/if}
                 <div class="footer">
-                    {#if !image}
-                        <button class="addImage" on:click={toggleImage}>
-                            <Icon icon="material-symbols:image-outline" width="18" height="18" />
-                            Add image
-                        </button>
-                    {:else}
-                        <button class="removeImage" on:click={toggleImage}>
-                            <Icon icon="material-symbols:close-small-rounded" width="18" height="18" />
-                            Remove image
-                        </button>
-                    {/if}
+                    <button type="button" class="addImage" on:click={openMediaPicker} disabled={!!mediaPreviewURL}>
+                        <Icon icon="material-symbols:image-outline" width="18" height="18" />
+                        Add media
+                    </button>
                     {#if errorMessage}
                         <p class="error">{errorMessage}</p>
                     {/if}
                     <p class="counter">{-postValue.length + 300}</p>
                 </div>
-                {#if image}
-                    <input class="imageInput" placeholder="Image URL..." type="text" bind:value={imageURL}>
-                {/if}
             </div>
         </div>
+    {/if}
+
+    <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+        bind:this={mediaInput}
+        on:change={handleMediaSelected}
+        hidden
+    />
+
+    {#if cropFile}
+        <ImageCropModal
+            file={cropFile}
+            shape="rect"
+            aspect={16 / 9}
+            outputWidth={1200}
+            outputHeight={675}
+            title="Crop image"
+            on:crop={handleCropped}
+            on:cancel={cancelCrop}
+        />
     {/if}
     <ul>
         <a class="brandLink" href="/" aria-label="Ivory home">
@@ -164,6 +256,17 @@
             <a href="/search" class:selected={isActive('/search')}>
                 <Icon icon="material-symbols:search" width="28px" height="28px" />
                 <p>Search</p>
+            </a>
+        </li>
+        <li>
+            <a href="/notifications" class="notificationsLink" class:selected={isActive('/notifications')}>
+                <span class="iconWithBadge">
+                    <Icon icon={isActive('/notifications') ? "material-symbols:notifications-rounded" : "material-symbols:notifications-outline-rounded"} width="28px" height="28px" />
+                    {#if $unreadCount > 0}
+                        <span class="badge">{$unreadCount > 9 ? '9+' : $unreadCount}</span>
+                    {/if}
+                </span>
+                <p>Notifications</p>
             </a>
         </li>
         <li>
@@ -295,7 +398,7 @@
         align-items: center;
     }
 
-    .addImage, .removeImage {
+    .addImage {
         cursor: pointer;
         display: flex;
         flex-direction: row;
@@ -307,15 +410,13 @@
         font-weight: 600;
         font-size: 12px;
         color: #fff;
-        transition: background 0.3s;
-    }
-
-    .addImage {
         background: var(--essential-announcement);
+        transition: opacity 0.3s;
     }
 
-    .removeImage {
-        background: var(--essential-negative);
+    .addImage:disabled {
+        opacity: 0.5;
+        cursor: default;
     }
 
     .error {
@@ -329,13 +430,43 @@
         color: var(--text-subdued);
     }
 
-    .imageInput {
-        padding: 1rem;
-        background: var(--background-elevated-highlight);
+    .mediaPreview {
+        position: relative;
+        margin-top: 0.5rem;
+        border-radius: 0.8rem;
+        overflow: hidden;
+        max-height: 260px;
+        background: #0a0a0a;
+    }
+
+    .mediaPreview img, .mediaPreview video {
+        width: 100%;
+        max-height: 260px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .mediaOverlay {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+    .removeMediaButton {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
         border: none;
-        color: var(--text-base);
-        border-radius: 1rem;
-        outline: none;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
     }
 
     .tabs {
@@ -355,6 +486,7 @@
         border-radius: 50%;
         cursor: pointer;
         object-fit: cover;
+        overflow: hidden;
         background: var(--background-elevated-highlight);
     }
 
@@ -394,6 +526,34 @@
 
     .tabs ul li a.selected {
         font-weight: 800;
+    }
+
+    .iconWithBadge {
+        position: relative;
+        display: inline-flex;
+    }
+
+    .badge {
+        position: absolute;
+        top: -6px;
+        right: -8px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: var(--essential-negative);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 16px;
+        text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+        .badge {
+            top: -2px;
+            right: -2px;
+        }
     }
 
     .postButton {
