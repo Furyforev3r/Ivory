@@ -1,11 +1,46 @@
-import { db, auth, fieldValue } from "$lib/server/services/firebaseAdmin"
+import { db, auth, fieldValue, bucket } from "$lib/server/services/firebaseAdmin"
 
-async function verifyToken(token) {
+export async function verifyToken(token) {
   try {
     const decodedToken = await auth.verifyIdToken(token)
     return { success: true, uid: decodedToken.uid }
   } catch (error) {
     return { success: false, error: 'Invalid or expired token' }
+  }
+}
+
+export async function uploadUserImage(uid, token, kind, buffer, contentType) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to edit this profile' }
+  }
+
+  if (kind !== 'avatar' && kind !== 'banner') {
+    return { success: false, message: 'Invalid image kind' }
+  }
+
+  try {
+    const extension = contentType === 'image/png' ? 'png' : 'jpg'
+    const filePath = `users/${uid}/${kind}.${extension}`
+    const file = bucket.file(filePath)
+
+    await file.save(buffer, {
+      contentType,
+      public: true,
+      metadata: { cacheControl: 'public, max-age=31536000' }
+    })
+
+    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media&updated=${Date.now()}`
+
+    return { success: true, url }
+  } catch (error) {
+    console.error('Error uploading image:', error)
+    return { success: false, error: 'Failed to upload image' }
   }
 }
 

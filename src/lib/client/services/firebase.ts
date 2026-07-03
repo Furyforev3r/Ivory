@@ -13,10 +13,10 @@ const firebaseConfig = {
 
 let app
 
-if (!getApps.lenght) {
+if (!getApps().length) {
   app = initializeApp(firebaseConfig, "default-app")
 } else {
-  firebaseApp = getApps()[0]
+  app = getApps()[0]
 }
 
 export const auth = getAuth(app)

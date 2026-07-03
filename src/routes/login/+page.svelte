@@ -50,13 +50,17 @@
 </svelte:head>
 
 <main class="main">
-    <div class="loginContent">
-        <h1>Ivory!</h1>
-        <p>Your favorite little space.</p>
+    <div class="brandSide">
+        <span class="wordmark">Ivory</span>
+        <p class="tagline">Your favorite little space.</p>
     </div>
     <div class="divider"></div>
-    <div class="loginContent">
-        <button on:click={handleGoogleLogin}><img src={googleIcon} width="25px" alt="Google Icon" /> Login with Google</button>
+    <div class="actionSide">
+        <h1>Happening now</h1>
+        <p class="subtitle">Join Ivory today.</p>
+        <button class="googleButton" on:click={handleGoogleLogin}>
+            <img src={googleIcon} width="20px" alt="Google Icon" /> Continue with Google
+        </button>
     </div>
 </main>
 
@@ -66,40 +70,97 @@
         flex-direction: row;
         align-items: center;
         justify-content: space-around;
+        gap: 3rem;
         height: 100dvh;
+        padding-inline: 2rem;
+    }
+
+    .brandSide {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .wordmark {
+        font-size: 56px;
+        font-weight: 800;
+        color: var(--essential-announcement);
+        letter-spacing: -0.02em;
+    }
+
+    .tagline {
+        color: var(--text-subdued);
+        font-size: 16px;
     }
 
     .divider {
-        width: 2px;
+        width: 1px;
         height: 60%;
         background: var(--gainsboro);
     }
 
-    .loginContent {
+    .actionSide {
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
+        align-items: flex-start;
+        gap: 0.6rem;
+        max-width: 320px;
     }
 
-    .loginContent button {
+    .actionSide h1 {
+        font-size: 32px;
+        font-weight: 800;
+    }
+
+    .subtitle {
+        color: var(--text-subdued);
+        margin-bottom: 0.6rem;
+    }
+
+    .googleButton {
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 0.3rem;
+        justify-content: center;
+        gap: 0.6rem;
         cursor: pointer;
-        background: none;
-        padding: 1rem;
-        border-radius: 0.3rem;
-        border: 0.1rem solid var(--background-elevated-press);
-        color: var(--text-subdued);
-        transition: 0.3s border-color;
-        transition: 0.2s box-shadow;
+        background: var(--text-base);
+        color: var(--background-base);
+        width: 100%;
+        padding: 0.9rem 1.2rem;
+        border-radius: 999px;
+        border: none;
+        font-weight: 700;
+        font-size: 15px;
+        transition: 0.2s opacity;
     }
 
-    .loginContent button:hover {
-        border-color: var(--background-elevated-highlight);
-        -webkit-box-shadow: 0px 0px 5px 3px rgba(245,245,245,1);
-        -moz-box-shadow: 0px 0px 5px 3px rgba(245,245,245,1);
-        box-shadow: 0px 0px 5px 3px rgba(245,245,245,1);
+    .googleButton img {
+        border-radius: 50%;
+        background: #fff;
+        padding: 2px;
+    }
+
+    .googleButton:hover {
+        opacity: 0.85;
+    }
+
+    @media (max-width: 700px) {
+        .main {
+            flex-direction: column;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .divider {
+            width: 60%;
+            height: 1px;
+        }
+
+        .actionSide {
+            align-items: center;
+            text-align: center;
+        }
     }
 </style>
