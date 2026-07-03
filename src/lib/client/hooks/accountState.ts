@@ -1,5 +1,6 @@
 import axios from "axios"
 import { writable, get } from "svelte/store"
+import { browser } from "$app/environment"
 import { user } from "./loginState"
 
 export const account = writable<any>(null)
@@ -14,7 +15,7 @@ async function fetchAccount(uid: string) {
 }
 
 export async function ensureAccount(uid: string) {
-    if (!uid) return
+    if (!browser || !uid) return
 
     if (loadedForUID === uid && get(account)) return
 

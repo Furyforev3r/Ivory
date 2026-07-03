@@ -46,8 +46,9 @@
     .discover {
         height: 100%;
         max-height: 100vh;
-        min-width: 25%;
-        max-width: 25%;
+        overflow-y: auto;
+        flex: 0 0 auto;
+        width: 320px;
         padding-inline: 1.2rem;
         background: var(--background-elevated-base);
     }
@@ -142,7 +143,7 @@
         text-decoration: underline;
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 1100px) {
         .discover {
             display: none;
         }

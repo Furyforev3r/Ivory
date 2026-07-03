@@ -9,6 +9,7 @@
     import toast, { Toaster } from "svelte-french-toast"
     import { page } from "$app/stores"
     import Skeleton from "./+Skeleton.svelte"
+    import { fade, scale } from "svelte/transition"
 
     let userInfo
     let userAccount
@@ -35,6 +36,12 @@
     function togglePost() {
         post = !post
         errorMessage = ""
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape" && post) {
+            togglePost()
+        }
     }
 
     function toggleImage() {
@@ -84,11 +91,12 @@
     }
 </script>
 
+<svelte:window on:keydown={handleKeydown} />
 <nav class="tabs">
     <Toaster />
     {#if post}
-        <div class="postToast" on:click|self={togglePost} role="presentation">
-            <div class="postToastContainer">
+        <div class="postToast" on:click|self={togglePost} role="presentation" transition:fade={{ duration: 150 }}>
+            <div class="postToastContainer" transition:scale={{ duration: 150, start: 0.96 }}>
                 <div class="toastHead">
                     <button on:click={togglePost}>Cancel</button>
                     <button class="postSubmit" on:click={validateAndPost} disabled={posting}>
@@ -102,7 +110,6 @@
                             width="64px"
                             height="64px"
                             class="profilePicture"
-                            loading="lazy"
                             alt="Your avatar"
                         />
                     {:else}
@@ -141,7 +148,6 @@
                     width="64px"
                     height="64px"
                     class="profilePicture"
-                    loading="lazy"
                     alt="Your avatar"
                 />
             {:else}
@@ -185,7 +191,6 @@
 
 <style>
     .postToast {
-        transform: translateX(-1.2rem);
         position: fixed;
         inset: 0;
         z-index: 900;
@@ -196,11 +201,14 @@
         flex-direction: column;
         align-items: center;
         background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
     }
 
     .postToastContainer {
         overflow: hidden;
         max-height: 50%;
+        box-shadow: 0 10px 40px var(--shadow-color);
         margin-top: 5%;
         width: 40%;
         background: var(--background-base);
@@ -332,11 +340,12 @@
 
     .tabs {
         overflow: auto;
+        overflow-x: hidden;
         height: 100%;
         max-height: 100vh;
-        min-width: 25%;
-        max-width: 25%;
-        padding-inline: 1.2rem;
+        flex: 0 0 auto;
+        width: 275px;
+        padding-inline: 0.8rem;
         background: var(--background-elevated-base);
     }
 
@@ -346,6 +355,7 @@
         border-radius: 50%;
         cursor: pointer;
         object-fit: cover;
+        background: var(--background-elevated-highlight);
     }
 
     .brandLink {
@@ -428,14 +438,10 @@
         opacity: 1;
     }
 
-    @media (max-width: 800px) {
-        .postToastContainer {
-            width: 80%;
-        }
-
+    @media (max-width: 1100px) {
         .tabs {
-            min-width: 15%;
-            max-width: 15%;
+            width: 88px;
+            padding-inline: 0.4rem;
         }
 
         .tabs ul {
@@ -444,7 +450,8 @@
         }
 
         .tabs ul li a {
-            width: 28px;
+            width: 44px;
+            justify-content: center;
         }
 
         .postButton {
@@ -458,6 +465,23 @@
 
         .postButton p {
             display: none;
+        }
+
+        .brandLink img, .brandLink :global(span) {
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px !important;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .postToastContainer {
+            width: 90%;
+            max-height: 70%;
+        }
+
+        .tabs {
+            width: 64px;
         }
     }
 </style>

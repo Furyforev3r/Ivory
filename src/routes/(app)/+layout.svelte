@@ -49,6 +49,9 @@
 <style>
     .appShell {
         height: 100dvh;
+        width: 100%;
+        max-width: 1280px;
+        margin-inline: auto;
         display: flex;
         flex-direction: row;
         overflow: hidden;
@@ -62,8 +65,8 @@
     }
 
     .skeletonTabs {
-        min-width: 25%;
-        max-width: 25%;
+        flex: 0 0 auto;
+        width: 275px;
         padding: 1.2rem;
         display: flex;
         flex-direction: column;
@@ -97,8 +100,8 @@
     }
 
     .skeletonDiscover {
-        min-width: 25%;
-        max-width: 25%;
+        flex: 0 0 auto;
+        width: 320px;
         padding: 1.2rem;
         display: flex;
         flex-direction: column;
@@ -106,10 +109,9 @@
         background: var(--background-elevated-base);
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 1100px) {
         .skeletonTabs {
-            min-width: 15%;
-            max-width: 15%;
+            width: 88px;
             align-items: center;
         }
 

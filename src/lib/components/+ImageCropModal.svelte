@@ -1,5 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from "svelte"
+    import { fade, scale } from "svelte/transition"
     import Icon from "@iconify/svelte"
 
     export let file: File
@@ -94,6 +95,10 @@
         dispatch("cancel")
     }
 
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape") cancel()
+    }
+
     async function apply() {
         saving = true
 
@@ -128,8 +133,9 @@
     }
 </script>
 
-<div class="cropOverlay">
-    <div class="cropModal">
+<svelte:window on:keydown={handleKeydown} />
+<div class="cropOverlay" transition:fade={{ duration: 150 }} on:click|self={cancel} role="presentation">
+    <div class="cropModal" transition:scale={{ duration: 150, start: 0.96 }}>
         <div class="cropHead">
             <h3>{title}</h3>
             <button type="button" class="iconButton" on:click={cancel} aria-label="Cancel">
@@ -191,6 +197,8 @@
         display: grid;
         place-items: center;
         background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
         padding: 1rem;
     }
 
@@ -203,7 +211,7 @@
         display: flex;
         flex-direction: column;
         gap: 1rem;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 10px 40px var(--shadow-color);
     }
 
     .cropHead {

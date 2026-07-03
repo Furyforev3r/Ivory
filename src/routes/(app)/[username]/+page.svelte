@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation"
+    import { browser } from "$app/environment"
     import { user } from "$lib/client/hooks/loginState"
     import { refreshAccount } from "$lib/client/hooks/accountState"
     import Icon from "@iconify/svelte"
@@ -11,6 +12,7 @@
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import Skeleton from "$lib/components/+Skeleton.svelte"
     import ImageCropModal from "$lib/components/+ImageCropModal.svelte"
+    import { fade, scale } from "svelte/transition"
 
     let userInfo: any
     let username: string
@@ -32,7 +34,7 @@
 
     $: username = $page.params.username
     $: userInfo = $user
-    $: if (username && username !== loadedFor) fetchUserData()
+    $: if (browser && username && username !== loadedFor) fetchUserData()
 
     const profileSchema = z.object({
         bannerURL: z.string().url("Please enter a valid URL for the banner."),
@@ -82,6 +84,12 @@
             formErrors = {}
         }
         editing = !editing
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape" && editing && !cropFile) {
+            toggleEditing()
+        }
     }
 
     function openFilePicker(target: "avatar" | "banner") {
@@ -191,6 +199,7 @@
     <meta name="description" content="Ivory!" />
 </svelte:head>
 
+<svelte:window on:keydown={handleKeydown} />
 <Toaster />
 
 <input
@@ -222,8 +231,8 @@
 {/if}
 
 {#if editing && userProfileClone}
-    <div class="editProfile">
-        <form class="form" on:submit={handleEditProfile}>
+    <div class="editProfile" transition:fade={{ duration: 150 }} on:click|self={toggleEditing} role="presentation">
+        <form class="form" on:submit={handleEditProfile} transition:scale={{ duration: 150, start: 0.96 }}>
             <div class="formTitle">
                 <h1>Edit profile</h1>
                 <button type="button" on:click={toggleEditing} aria-label="Close">
@@ -291,11 +300,11 @@
             <Skeleton width="25%" height="16px" />
         </div>
     {:else}
-        <img src={userProfile.user.bannerURL} alt={`${userProfile.user.displayName}'s banner`} class="banner" loading="lazy">
+        <img src={userProfile.user.bannerURL} alt={`${userProfile.user.displayName}'s banner`} class="banner">
         <div class="profile">
             <div class="topInfo">
                 <a href={userProfile.user.photoURL} target="_blank" rel="noreferrer">
-                    <img src={userProfile.user.photoURL} alt={userProfile.user.displayName} loading="lazy" />
+                    <img src={userProfile.user.photoURL} alt={userProfile.user.displayName} />
                 </a>
                 <div class="profileButtons">
                     {#if canEdit}
@@ -354,6 +363,7 @@
         overflow: hidden;
         height: 150px;
         object-fit: cover;
+        background: var(--background-elevated-highlight);
         border-bottom: 1px solid var(--gainsboro);
     }
 
@@ -368,6 +378,7 @@
         padding: 1.2rem;
         border-radius: 1rem;
         gap: 0.5rem;
+        box-shadow: 0 10px 40px var(--shadow-color);
     }
 
     .formTitle {
@@ -406,6 +417,8 @@
         display: grid;
         place-items: center;
         background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
     }
 
     .editPreview {
@@ -429,6 +442,7 @@
         height: 120px;
         object-fit: cover;
         display: block;
+        background: var(--background-elevated-highlight);
     }
 
     .avatarEditButton {
@@ -449,6 +463,7 @@
         height: 100%;
         object-fit: cover;
         display: block;
+        background: var(--background-elevated-highlight);
     }
 
     .editOverlay {
@@ -526,6 +541,7 @@
         object-fit: cover;
         border-radius: 50%;
         border: 4px solid var(--background-base);
+        background: var(--background-elevated-highlight);
         margin-top: -50px;
     }
 

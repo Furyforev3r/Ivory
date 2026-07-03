@@ -261,6 +261,7 @@
         border-radius: 50%;
         object-fit: cover;
         border: 1px solid var(--gainsboro);
+        background: var(--background-elevated-highlight);
     }
 
     .followButton {

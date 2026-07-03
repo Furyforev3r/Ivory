@@ -33,7 +33,7 @@
         <h3>Account</h3>
         <div class="accountRow">
             {#if userAccount}
-                <img src={userAccount.user.photoURL} alt={userAccount.user.displayName} class="avatar" loading="lazy" />
+                <img src={userAccount.user.photoURL} alt={userAccount.user.displayName} class="avatar" />
                 <div class="accountInfo">
                     <p class="displayName">{userAccount.user.displayName}</p>
                     <p class="username">@{userAccount.user.username}</p>
@@ -125,6 +125,7 @@
         border-radius: 50%;
         object-fit: cover;
         border: 1px solid var(--gainsboro);
+        background: var(--background-elevated-highlight);
     }
 
     .accountInfo {

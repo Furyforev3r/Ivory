@@ -86,16 +86,21 @@
     }
 
     @keyframes loading {
-        from { background: var(--background-highlight); }
-        to { background: var(--snow); }
+        from { background-position: 100% 50%; }
+        to { background-position: 0 50%; }
     }
 
     .loading {
         width: 100%;
-        padding: 3rem;
-        background: var(--background-highlight);
-        animation-name: loading;
-        animation: loading 0.6s infinite alternate ease-in-out;
+        min-height: 84px;
+        background: linear-gradient(
+            90deg,
+            var(--background-elevated-highlight) 25%,
+            var(--background-elevated-press) 37%,
+            var(--background-elevated-highlight) 63%
+        );
+        background-size: 400% 100%;
+        animation: loading 1.4s ease infinite;
    }
 
     .userPic {
@@ -103,6 +108,7 @@
         border-radius: 50%;
         object-fit: cover;
         border: 1px solid var(--gainsboro);
+        background: var(--background-elevated-highlight);
     }
 
     .postContentContainer {
@@ -142,6 +148,9 @@
         max-height: 400px;
         min-width: 50%;
         max-width: 100%;
+        border-radius: 0.8rem;
+        background: var(--background-elevated-highlight);
+        border: 1px solid var(--gainsboro);
     }
 
     .postIcons {

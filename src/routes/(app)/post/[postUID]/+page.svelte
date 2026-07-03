@@ -1,6 +1,7 @@
 <script lang="ts">
     import Icon from "@iconify/svelte"
     import { page } from "$app/stores"
+    import { browser } from "$app/environment"
     import toast, { Toaster } from "svelte-french-toast"
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
@@ -12,7 +13,7 @@
     let loadedFor: string | null = null
 
     $: postUID = $page.params.postUID
-    $: if (postUID && postUID !== loadedFor) loadPost(postUID)
+    $: if (browser && postUID && postUID !== loadedFor) loadPost(postUID)
 
     async function loadPost(uid: string) {
         loadedFor = uid
