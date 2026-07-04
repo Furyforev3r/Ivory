@@ -29,6 +29,16 @@
     let busyRepost = false
     let showRepostMenu = false
     let quoting = false
+    let mediaError = false
+    let originalMediaError = false
+
+    function handleMediaError() {
+        mediaError = true
+    }
+
+    function handleOriginalMediaError() {
+        originalMediaError = true
+    }
 
     $: isPureRepost = !!post?.repostOf && !post?.content
     $: isQuoteRepost = !!post?.repostOf && !!post?.content
@@ -221,12 +231,12 @@
                     {#if post.content}
                         <p class="content">{post.content}</p>
                     {/if}
-                    {#if post.image && post.mediaType === "video"}
+                    {#if post.image && !mediaError && post.mediaType === "video"}
                         <div class="postVideoWrap" on:click|stopPropagation role="presentation">
-                            <video class="postVideo" src={post.imageURL} controls preload="metadata"></video>
+                            <video class="postVideo" src={post.imageURL} controls preload="metadata" on:error={handleMediaError}></video>
                         </div>
-                    {:else if post.image}
-                        <img class="postImage" src={post.imageURL} alt="Post attachment" loading="lazy" decoding="async">
+                    {:else if post.image && !mediaError}
+                        <img class="postImage" src={post.imageURL} alt="Post attachment" loading="lazy" decoding="async" on:error={handleMediaError}>
                     {/if}
                     {#if isQuoteRepost}
                         {#if originalPost && originalAuthor}
@@ -237,12 +247,12 @@
                                     <p class="username">@{originalAuthor.username}</p>
                                 </div>
                                 <p class="content">{originalPost.content}</p>
-                                {#if originalPost.image && originalPost.mediaType === "video"}
+                                {#if originalPost.image && !originalMediaError && originalPost.mediaType === "video"}
                                     <div class="postVideoWrap" on:click|stopPropagation role="presentation">
-                                        <video class="postVideo" src={originalPost.imageURL} controls preload="metadata"></video>
+                                        <video class="postVideo" src={originalPost.imageURL} controls preload="metadata" on:error={handleOriginalMediaError}></video>
                                     </div>
-                                {:else if originalPost.image}
-                                    <img class="postImage" src={originalPost.imageURL} alt="Quoted attachment" loading="lazy" decoding="async">
+                                {:else if originalPost.image && !originalMediaError}
+                                    <img class="postImage" src={originalPost.imageURL} alt="Quoted attachment" loading="lazy" decoding="async" on:error={handleOriginalMediaError}>
                                 {/if}
                             </div>
                         {:else}

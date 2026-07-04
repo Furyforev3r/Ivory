@@ -4,11 +4,11 @@ import { getPostByUID } from "$lib/server/utils/firebaseAdminUtils"
 export async function GET({ url }) {
   try {
     const postUID = url.searchParams.get('uid')
-    
-    const post = await getPostByUID(postUID)
-    
-    if (post.success) {
-      return json({ post: post }, { status: 200 })
+
+    const result = await getPostByUID(postUID)
+
+    if (result.success) {
+      return json({ post: result.post }, { status: 200 })
     } else {
       return json({ error: 'No posts found for this UID' }, { status: 404 })
     }
