@@ -419,6 +419,7 @@
         outline: none;
         color: var(--text-base);
         font-size: 16px;
+        resize: none;
     }
 
     .footer {

@@ -354,7 +354,7 @@
     .userResult {
         padding: 1rem;
         border-radius: 0.3rem;
-        border-block: 1px solid var(--gainsboro);
+        border-bottom: 1px solid var(--gainsboro);
         display: flex;
         flex-direction: row;
         align-items: center;

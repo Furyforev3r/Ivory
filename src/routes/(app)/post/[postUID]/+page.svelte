@@ -225,6 +225,7 @@
         font-family: inherit;
         font-size: 15px;
         border-bottom: 1px solid var(--gainsboro);
+        resize: none;
     }
 
     .composerBody button {

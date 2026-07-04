@@ -23,7 +23,7 @@
         flex-direction: row;
         gap: 0.8rem;
         padding: 1rem;
-        border-block: 1px solid var(--gainsboro);
+        border-bottom: 1px solid var(--gainsboro);
     }
 
     .lines {

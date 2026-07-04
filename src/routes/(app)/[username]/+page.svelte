@@ -582,6 +582,11 @@
         border-radius: 0.8rem;
     }
 
+    .form textarea {
+        min-height: 5rem;
+        resize: vertical;
+    }
+
     .form input, .form textarea {
         border: none;
         outline: none;

@@ -323,7 +323,7 @@
         flex-direction: row;
         gap: 0.8rem;
         padding: 1rem;
-        border-block: 1px solid var(--gainsboro);
+        border-bottom: 1px solid var(--gainsboro);
         flex-grow: 1;
         transition: 0.2s background;
         text-decoration: none;
