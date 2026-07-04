@@ -35,11 +35,13 @@
 
     let liked = false
     let reposted = false
+    let bookmarked = false
     let likesCount = 0
     let repliesCount = 0
     let repostsCount = 0
     let busyLike = false
     let busyRepost = false
+    let busyBookmark = false
     let showRepostMenu = false
     let quoting = false
     let mediaError = false
@@ -96,6 +98,7 @@
                 if (response.status === 200) {
                     liked = response.data.liked
                     reposted = response.data.reposted
+                    bookmarked = response.data.bookmarked
                 }
             } catch (error) {
                 console.error(error)
@@ -136,6 +139,27 @@
             toast.error("Could not update like")
         } finally {
             busyLike = false
+        }
+    }
+
+    async function handleBookmark(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        if (busyBookmark || !requireAuth()) return
+
+        busyBookmark = true
+        const wasBookmarked = bookmarked
+        bookmarked = !wasBookmarked
+
+        try {
+            await axios.post(`/api/toggleBookmark?token=${userInfo.accessToken}&uid=${userInfo.uid}`, { postUID: post.id })
+            toast.success(bookmarked ? "Added to bookmarks" : "Removed from bookmarks")
+        } catch (error) {
+            bookmarked = wasBookmarked
+            toast.error("Could not update bookmark")
+        } finally {
+            busyBookmark = false
         }
     }
 
@@ -436,6 +460,9 @@
                         <button type="button" class="icon iconButton likeButton" class:active={liked} on:click={handleLike} aria-label="Like">
                             <Icon icon={liked ? "mdi:heart" : "mdi:heart-outline"} width="20px" height="20px" />
                             {#if likesCount > 0}<span class="count likeCount" class:activeText={liked}>{likesCount}</span>{/if}
+                        </button>
+                        <button type="button" class="icon iconButton bookmarkButton" class:active={bookmarked} on:click={handleBookmark} aria-label="Bookmark">
+                            <Icon icon={bookmarked ? "material-symbols:bookmark-rounded" : "material-symbols:bookmark-outline-rounded"} width="18px" height="18px" />
                         </button>
                         <button type="button" class="icon iconButton" on:click={handleShare} aria-label="Share">
                             <Icon icon="material-symbols:ios-share" width="18px" height="18px" />
@@ -877,6 +904,15 @@
     .likeButton.active,
     .likeButton.active :global(svg) {
         color: var(--essential-like);
+    }
+
+    .bookmarkButton:hover, .bookmarkButton:hover :global(svg) {
+        color: var(--essential-announcement);
+    }
+
+    .bookmarkButton.active,
+    .bookmarkButton.active :global(svg) {
+        color: var(--essential-announcement);
     }
 
     .count {

@@ -93,6 +93,12 @@
             </a>
         </li>
         <li>
+            <a href="/bookmarks" class:selected={isActive('/bookmarks')}>
+                <Icon icon={isActive('/bookmarks') ? "material-symbols:bookmark-rounded" : "material-symbols:bookmark-outline-rounded"} width="28px" height="28px" />
+                <p>Bookmarks</p>
+            </a>
+        </li>
+        <li>
             <a href={userAccount ? `/${userAccount.user.username}` : '#'} class:selected={userAccount && currentPath === `/${userAccount.user.username}`}>
                 <Icon icon={userAccount && currentPath === `/${userAccount.user.username}` ? "material-symbols:account-circle" : "material-symbols:account-circle-outline"} width="28px" height="28px" />
                 <p>Profile</p>

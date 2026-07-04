@@ -394,23 +394,90 @@ export async function toggleLike(postUID, uid, token) {
 
 export async function getPostViewerState(postUID, uid) {
   if (!uid) {
-    return { success: true, liked: false, reposted: false }
+    return { success: true, liked: false, reposted: false, bookmarked: false }
   }
 
   try {
-    const [likeDoc, repostSnapshot] = await Promise.all([
+    const [likeDoc, repostSnapshot, bookmarkDoc] = await Promise.all([
       db.collection('Likes').doc(`${postUID}_${uid}`).get(),
-      db.collection('Posts').where('userUID', '==', uid).where('repostOf', '==', postUID).limit(1).get()
+      db.collection('Posts').where('userUID', '==', uid).where('repostOf', '==', postUID).limit(1).get(),
+      db.collection('Bookmarks').doc(`${uid}_${postUID}`).get()
     ])
 
     return {
       success: true,
       liked: likeDoc.exists,
-      reposted: !repostSnapshot.empty
+      reposted: !repostSnapshot.empty,
+      bookmarked: bookmarkDoc.exists
     }
   } catch (error) {
     console.error('Error fetching post viewer state:', error)
     return { success: false, error: 'Failed to fetch post state' }
+  }
+}
+
+export async function toggleBookmark(postUID, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const postDoc = await db.collection('Posts').doc(postUID).get()
+
+    if (!postDoc.exists) {
+      return { success: false, message: 'Post not found' }
+    }
+
+    const bookmarkRef = db.collection('Bookmarks').doc(`${uid}_${postUID}`)
+    const bookmarkDoc = await bookmarkRef.get()
+
+    if (bookmarkDoc.exists) {
+      await bookmarkRef.delete()
+      return { success: true, bookmarked: false }
+    } else {
+      await bookmarkRef.set({ userUID: uid, postUID, createdAt: fieldValue.serverTimestamp() })
+      return { success: true, bookmarked: true }
+    }
+  } catch (error) {
+    console.error('Error toggling bookmark:', error)
+    return { success: false, error: 'Failed to toggle bookmark' }
+  }
+}
+
+export async function getBookmarkedPosts(uid, token, limit = 30) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const bookmarksSnapshot = await db.collection('Bookmarks').where('userUID', '==', uid).get()
+
+    const sortedBookmarks = bookmarksSnapshot.docs
+      .map(doc => doc.data())
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+      .slice(0, limit)
+
+    const posts = (await Promise.all(sortedBookmarks.map(async bookmark => {
+      const postDoc = await db.collection('Posts').doc(bookmark.postUID).get()
+      return postDoc.exists ? { id: postDoc.id, ...postDoc.data() } : null
+    }))).filter(Boolean)
+
+    return { success: true, posts }
+  } catch (error) {
+    console.error('Error fetching bookmarked posts:', error)
+    return { success: false, error: 'Failed to fetch bookmarks' }
   }
 }
 
