@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore"
-import { db, auth, fieldValue, bucket } from "$lib/server/services/firebaseAdmin"
+import { db, auth, fieldValue } from "$lib/server/services/firebaseAdmin"
+import { supabaseAdmin, SUPABASE_BUCKET } from "$lib/server/services/supabase"
 
 export async function verifyToken(token) {
   try {
@@ -74,15 +75,21 @@ export async function uploadUserImage(uid, token, kind, buffer, contentType) {
     const filePath = kind === 'post'
       ? `posts/${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`
       : `users/${uid}/${kind}.${extension}`
-    const file = bucket.file(filePath)
 
-    await file.save(buffer, {
-      contentType,
-      public: true,
-      metadata: { cacheControl: 'public, max-age=31536000' }
-    })
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(SUPABASE_BUCKET)
+      .upload(filePath, buffer, {
+        contentType,
+        cacheControl: '31536000',
+        upsert: true
+      })
 
-    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media&updated=${Date.now()}`
+    if (uploadError) {
+      throw uploadError
+    }
+
+    const { data } = supabaseAdmin.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath)
+    const url = `${data.publicUrl}?updated=${Date.now()}`
 
     return { success: true, url }
   } catch (error) {
