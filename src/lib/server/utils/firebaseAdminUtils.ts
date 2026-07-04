@@ -643,7 +643,7 @@ async function canReplyToPost(postData, uid) {
   return true
 }
 
-export async function newReply(postUID, content, uid, token) {
+export async function newReply(postUID, content, uid, token, parentReplyUID = null) {
   const tokenVerification = await verifyToken(token)
 
   if (!tokenVerification.success) {
@@ -666,16 +666,33 @@ export async function newReply(postUID, content, uid, token) {
       return { success: false, message: 'You are not allowed to reply to this post' }
     }
 
+    let parentReplyDoc = null
+    if (parentReplyUID) {
+      parentReplyDoc = await db.collection('Replies').doc(parentReplyUID).get()
+      if (!parentReplyDoc.exists || parentReplyDoc.data()!.postUID !== postUID) {
+        return { success: false, message: 'Reply not found' }
+      }
+    }
+
     const reply = await db.collection('Replies').add({
       postUID,
       userUID: uid,
       content,
       likesCount: 0,
+      parentReplyUID,
       uploadDate: fieldValue.serverTimestamp()
     })
 
     await postRef.update({ repliesCount: fieldValue.increment(1) })
     await createNotification(postDoc.data()!.userUID, 'reply', uid, postUID)
+
+    if (parentReplyDoc) {
+      const parentAuthorUID = parentReplyDoc.data()!.userUID
+      if (parentAuthorUID !== postDoc.data()!.userUID) {
+        await createNotification(parentAuthorUID, 'reply', uid, postUID)
+      }
+    }
+
     await notifyMentions(content, uid, postUID)
 
     return { success: true, id: reply.id }

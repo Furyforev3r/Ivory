@@ -518,11 +518,11 @@
                     {/each}
                 {:else}
                     {#if pinnedPost}
-                        <Post post={pinnedPost} pinned={true} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                        <Post post={pinnedPost} author={userProfile.user} pinned={true} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                     {/if}
                     {#each userPosts.posts.posts as post (post.id)}
                         {#if post.id !== userProfile.user.pinnedPostUID}
-                            <Post post={post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                            <Post post={post} author={userProfile.user} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                         {/if}
                     {/each}
                 {/if}

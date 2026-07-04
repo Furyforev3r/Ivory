@@ -13,8 +13,21 @@
     import PostSkeleton from "./+PostSkeleton.svelte"
     import QuoteModal from "./+QuoteModal.svelte"
     import UserBadges from "./+UserBadges.svelte"
+    import ImageLightbox from "./+ImageLightbox.svelte"
     import { shareLink } from "$lib/client/utils/share"
     import { tokenizeMentions } from "$lib/client/utils/mentions"
+
+    let lightboxSrc: string | null = null
+
+    function openLightbox(event: Event, src: string) {
+        event.preventDefault()
+        event.stopPropagation()
+        lightboxSrc = src
+    }
+
+    function closeLightbox() {
+        lightboxSrc = null
+    }
 
     function goToMention(event: Event, username: string) {
         event.preventDefault()
@@ -480,7 +493,16 @@
                             <video class="postVideo" src={post.imageURL} controls preload="metadata" on:error={handleMediaError}></video>
                         </div>
                     {:else if post.image && !mediaError}
-                        <img class="postImage" src={post.imageURL} alt="Post attachment" loading="lazy" decoding="async" on:error={handleMediaError}>
+                        <button type="button" class="postImageButton" on:click={(e) => openLightbox(e, post.imageURL)}>
+                            <img
+                                class="postImage"
+                                src={post.imageURL}
+                                alt="Post attachment"
+                                loading="lazy"
+                                decoding="async"
+                                on:error={handleMediaError}
+                            >
+                        </button>
                     {/if}
                     {#if pollOptions.length > 0}
                         <div class="poll" on:click|stopPropagation role="presentation">
@@ -529,7 +551,16 @@
                                         <video class="postVideo" src={originalPost.imageURL} controls preload="metadata" on:error={handleOriginalMediaError}></video>
                                     </div>
                                 {:else if originalPost.image && !originalMediaError}
-                                    <img class="postImage" src={originalPost.imageURL} alt="Quoted attachment" loading="lazy" decoding="async" on:error={handleOriginalMediaError}>
+                                    <button type="button" class="postImageButton" on:click={(e) => openLightbox(e, originalPost.imageURL)}>
+                                        <img
+                                            class="postImage"
+                                            src={originalPost.imageURL}
+                                            alt="Quoted attachment"
+                                            loading="lazy"
+                                            decoding="async"
+                                            on:error={handleOriginalMediaError}
+                                        >
+                                    </button>
                                 {/if}
                             </div>
                         {:else if originalBlocked}
@@ -617,6 +648,10 @@
             </div>
         </div>
     </div>
+{/if}
+
+{#if lightboxSrc}
+    <ImageLightbox src={lightboxSrc} alt="Post attachment" on:close={closeLightbox} />
 {/if}
 
 <style>
@@ -907,11 +942,22 @@
         text-decoration: underline;
     }
 
-    .postImage {
+    .postImageButton {
+        display: block;
         margin-top: 0.3rem;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+        max-width: 100%;
+        min-width: 50%;
+    }
+
+    .postImage {
+        display: block;
         object-fit: cover;
         max-height: 400px;
-        min-width: 50%;
+        width: 100%;
         max-width: 100%;
         border-radius: 0.8rem;
         background: var(--background-elevated-highlight);

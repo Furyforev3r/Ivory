@@ -6,11 +6,13 @@
     import toast from "svelte-french-toast"
     import axios from "axios"
     import { user } from "$lib/client/hooks/loginState"
+    import { fetchAuthorsByUID } from "$lib/client/utils/hydrateAuthors"
 
     let userInfo: any
     $: userInfo = $user
 
     let timeline: any[] = []
+    let authorsByUID: Record<string, any> = {}
     let loading = false
     let initialLoading = true
     let hasMore = true
@@ -41,7 +43,10 @@
                 const newPosts = response.data.posts.posts
                 if (newPosts.length > 0) {
                     const existingIds = new Set(timeline.map((post: any) => post.id))
-                    timeline = [...timeline, ...newPosts.filter((post: any) => !existingIds.has(post.id))]
+                    const uniqueNewPosts = newPosts.filter((post: any) => !existingIds.has(post.id))
+                    const newAuthors = await fetchAuthorsByUID(uniqueNewPosts.map((post: any) => post.userUID))
+                    authorsByUID = { ...authorsByUID, ...newAuthors }
+                    timeline = [...timeline, ...uniqueNewPosts]
                     if (newPosts.length < limit) hasMore = false
                 } else {
                     hasMore = false
@@ -67,8 +72,13 @@
         }
     }
 
-    function handlePosted(event: CustomEvent<{ post: any }>) {
-        timeline = [event.detail.post, ...timeline]
+    async function handlePosted(event: CustomEvent<{ post: any }>) {
+        const post = event.detail.post
+        if (!authorsByUID[post.userUID]) {
+            const newAuthors = await fetchAuthorsByUID([post.userUID])
+            authorsByUID = { ...authorsByUID, ...newAuthors }
+        }
+        timeline = [post, ...timeline]
     }
 
     function handleDeleted(event: CustomEvent<{ id: string }>) {
@@ -97,7 +107,7 @@
             {/each}
         {:else}
             {#each timeline as post (post.id)}
-                <Post post={post} on:deleted={handleDeleted} on:edited={handleEdited} />
+                <Post post={post} author={authorsByUID[post.userUID]} on:deleted={handleDeleted} on:edited={handleEdited} />
             {/each}
 
             {#if loading && hasMore}

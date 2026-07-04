@@ -26,6 +26,9 @@
     let replyValue = ""
     let posting = false
     let replyTextareaEl: HTMLTextAreaElement
+    let replyingTo: { replyUID: string; username: string } | null = null
+
+    $: topLevelReplies = replies.filter((reply: any) => !reply.parentReplyUID)
 
     let userInfo: any
     $: userInfo = $user
@@ -92,9 +95,13 @@
         post = event.detail.post
     }
 
-    function handleReplyToReply(event: CustomEvent<{ username: string }>) {
-        replyValue = `@${event.detail.username} `
+    function handleReplyToReply(event: CustomEvent<{ replyUID: string; username: string }>) {
+        replyingTo = event.detail
         replyTextareaEl?.focus()
+    }
+
+    function cancelReplyingTo() {
+        replyingTo = null
     }
 
     async function submitReply() {
@@ -104,12 +111,14 @@
         try {
             await axios.post(`/api/newReply?token=${userInfo.accessToken}&uid=${userInfo.uid}`, {
                 postUID,
-                content: replyValue.trim()
+                content: replyValue.trim(),
+                parentReplyUID: replyingTo?.replyUID ?? null
             })
             replyValue = ""
+            replyingTo = null
             await loadReplies(postUID)
-        } catch (error) {
-            toast.error("Could not post reply")
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || "Could not post reply")
         } finally {
             posting = false
         }
@@ -140,6 +149,14 @@
                 <Skeleton circle width="40px" height="40px" />
             {/if}
             <div class="composerBody">
+                {#if replyingTo}
+                    <div class="replyingToChip">
+                        <span>Replying to <strong>@{replyingTo.username}</strong></span>
+                        <button type="button" on:click={cancelReplyingTo} aria-label="Cancel reply">
+                            <Icon icon="material-symbols:close-rounded" width="16" height="16" />
+                        </button>
+                    </div>
+                {/if}
                 <textarea
                     use:autosize
                     bind:this={replyTextareaEl}
@@ -162,8 +179,8 @@
             {:else if replies.length === 0}
                 <p class="empty">No replies yet. Be the first to reply!</p>
             {:else}
-                {#each replies as reply (reply.id)}
-                    <Reply {reply} on:reply={handleReplyToReply} />
+                {#each topLevelReplies as reply (reply.id)}
+                    <Reply {reply} allReplies={replies} on:reply={handleReplyToReply} />
                 {/each}
             {/if}
         </div>
@@ -250,10 +267,37 @@
         gap: 0.6rem;
     }
 
+    .replyingToChip {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--essential-announcement) 10%, transparent);
+        color: var(--text-subdued);
+        font-size: 13px;
+        width: fit-content;
+    }
+
+    .replyingToChip strong {
+        color: var(--essential-announcement);
+    }
+
+    .replyingToChip button {
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        border: none;
+        background: none;
+        color: var(--text-subdued);
+    }
+
     .composerBody textarea {
         width: 100%;
-        min-height: 2.4rem;
-        padding: 0.6rem 0;
+        min-height: 1.6rem;
+        padding: 0.4rem 0;
         border: none;
         outline: none;
         background: none;

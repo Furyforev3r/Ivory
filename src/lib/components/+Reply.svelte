@@ -12,8 +12,13 @@
     import { tokenizeMentions } from "$lib/client/utils/mentions"
 
     export let reply: any
+    export let allReplies: any[] = []
+    export let depth = 0
 
     const dispatch = createEventDispatcher()
+
+    $: children = allReplies.filter((r) => r.parentReplyUID === reply.id)
+    $: indent = Math.min(depth, 4)
 
     let userInfo: any
     $: userInfo = $user
@@ -80,44 +85,54 @@
 
     function handleReplyClick() {
         if (!author) return
-        dispatch("reply", { username: author.username })
+        dispatch("reply", { replyUID: reply.id, username: author.username })
     }
 </script>
 
-<div class="replyContainer">
-    {#if !author}
-        <Skeleton circle width="48px" height="48px" />
-        <div class="lines">
-            <Skeleton width="30%" height="12px" />
-            <Skeleton width="80%" height="12px" />
-        </div>
-    {:else}
-        <a href={`/${author.username}`}>
-            <img class="userPic" alt={author.displayName} src={author.photoURL} width="48px" height="48px" loading="lazy" decoding="async" />
-        </a>
-        <div class="replyContent">
-            <div class="replyInfo">
-                <p class="displayName">{author.displayName}</p>
-                <UserBadges verified={author.verified} admin={author.admin} size="14" />
-                <p class="username">@{author.username}</p>
-                <span class="username">·</span>
-                <p class="username">{formatTimestamp(reply.uploadDate)}</p>
+<div class="replyWrapper" style={`margin-left:${indent * 1.6}rem`}>
+    <div class="replyContainer">
+        {#if !author}
+            <Skeleton circle width="48px" height="48px" />
+            <div class="lines">
+                <Skeleton width="30%" height="12px" />
+                <Skeleton width="80%" height="12px" />
             </div>
-            <p class="content">{#each tokenizeMentions(reply.content) as token}{#if token.type === "mention"}<span class="mention" role="link" tabindex="0" on:click={(e) => goToMention(e, token.value)} on:keydown={(e) => { if (e.key === "Enter") goToMention(e, token.value) }}>@{token.value}</span>{:else}{token.value}{/if}{/each}</p>
-            <div class="replyIcons">
-                <button type="button" class="iconButton" on:click={handleReplyClick} aria-label="Reply">
-                    <Icon icon="bx:comment" width="18px" height="18px" />
-                </button>
-                <button type="button" class="iconButton likeButton" class:active={liked} on:click={handleLike} aria-label="Like">
-                    <Icon icon={liked ? "mdi:heart" : "mdi:heart-outline"} width="18px" height="18px" />
-                    {#if likesCount > 0}<span class="count" class:activeText={liked}>{likesCount}</span>{/if}
-                </button>
+        {:else}
+            <a href={`/${author.username}`}>
+                <img class="userPic" alt={author.displayName} src={author.photoURL} width="48px" height="48px" loading="lazy" decoding="async" />
+            </a>
+            <div class="replyContent">
+                <div class="replyInfo">
+                    <p class="displayName">{author.displayName}</p>
+                    <UserBadges verified={author.verified} admin={author.admin} size="14" />
+                    <p class="username">@{author.username}</p>
+                    <span class="username">·</span>
+                    <p class="username">{formatTimestamp(reply.uploadDate)}</p>
+                </div>
+                <p class="content">{#each tokenizeMentions(reply.content) as token}{#if token.type === "mention"}<span class="mention" role="link" tabindex="0" on:click={(e) => goToMention(e, token.value)} on:keydown={(e) => { if (e.key === "Enter") goToMention(e, token.value) }}>@{token.value}</span>{:else}{token.value}{/if}{/each}</p>
+                <div class="replyIcons">
+                    <button type="button" class="iconButton" on:click={handleReplyClick} aria-label="Reply">
+                        <Icon icon="bx:comment" width="18px" height="18px" />
+                    </button>
+                    <button type="button" class="iconButton likeButton" class:active={liked} on:click={handleLike} aria-label="Like">
+                        <Icon icon={liked ? "mdi:heart" : "mdi:heart-outline"} width="18px" height="18px" />
+                        {#if likesCount > 0}<span class="count" class:activeText={liked}>{likesCount}</span>{/if}
+                    </button>
+                </div>
             </div>
-        </div>
-    {/if}
+        {/if}
+    </div>
+    {#each children as child (child.id)}
+        <svelte:self reply={child} {allReplies} depth={depth + 1} on:reply />
+    {/each}
 </div>
 
 <style>
+    .replyWrapper {
+        display: flex;
+        flex-direction: column;
+    }
+
     .replyContainer {
         display: flex;
         flex-direction: row;

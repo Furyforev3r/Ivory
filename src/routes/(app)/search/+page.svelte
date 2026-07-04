@@ -9,9 +9,11 @@
     import { goto } from "$app/navigation"
     import { user } from "$lib/client/hooks/loginState"
     import { searchHistory, addSearchHistory, removeSearchHistoryItem } from "$lib/client/utils/searchHistory"
+    import { fetchAuthorsByUID } from "$lib/client/utils/hydrateAuthors"
 
     let timeline: any = null
     let timelineLoading = true
+    let authorsByUID: Record<string, any> = {}
 
     let searchResults: any[] = []
     let hasSearched = false
@@ -38,6 +40,8 @@
 
             if (response.status == 200 || response.status == 201) {
                 timeline = response.data
+                const newAuthors = await fetchAuthorsByUID(timeline.posts.posts.map((post: any) => post.userUID))
+                authorsByUID = { ...authorsByUID, ...newAuthors }
             } else {
                 console.error(response.data.error)
             }
@@ -81,6 +85,9 @@
 
             if (response.status === 200) {
                 searchResults = response.data.results
+                const postResults = searchResults.filter((result: any) => !result.isUser)
+                const newAuthors = await fetchAuthorsByUID(postResults.map((result: any) => result.userUID))
+                authorsByUID = { ...authorsByUID, ...newAuthors }
             } else {
                 console.error(response.data.error)
             }
@@ -204,7 +211,7 @@
                         </div>
                     </a>
                 {:else}
-                    <Post post={result} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                    <Post post={result} author={authorsByUID[result.userUID]} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                 {/if}
             {/each}
         </div>
@@ -218,7 +225,7 @@
                     {/each}
                 {:else if timeline}
                     {#each timeline.posts.posts as post (post.id)}
-                        <Post post={post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                        <Post post={post} author={authorsByUID[post.userUID]} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                     {/each}
                 {/if}
             </div>

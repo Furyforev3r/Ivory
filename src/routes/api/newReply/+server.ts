@@ -5,13 +5,13 @@ export async function POST({ url, request }) {
   try {
     const token = url.searchParams.get('token')
     const uid = url.searchParams.get('uid')
-    const { postUID, content } = await request.json()
+    const { postUID, content, parentReplyUID } = await request.json()
 
     if (!postUID || !content || !content.trim()) {
       return json({ error: 'Missing postUID or content' }, { status: 400 })
     }
 
-    const result = await newReply(postUID, content, uid, token)
+    const result = await newReply(postUID, content, uid, token, parentReplyUID ?? null)
 
     if (result.success) {
       return json({ id: result.id }, { status: 201 })

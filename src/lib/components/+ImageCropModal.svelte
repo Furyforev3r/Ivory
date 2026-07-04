@@ -161,7 +161,7 @@
                     alt="Crop preview"
                     draggable="false"
                     on:load={handleImageLoad}
-                    style={`transform: translate(-50%, -50%) translate(${panX}px, ${panY}px) scale(${baseScale * zoom}); width:${naturalW}px; height:${naturalH}px;`}
+                    style={`transform: translate(${panX}px, ${panY}px) scale(${baseScale * zoom}) translate(-50%, -50%); width:${naturalW}px; height:${naturalH}px;`}
                 />
             {/if}
             <div class="viewportRing" class:circleRing={shape === "circle"}></div>

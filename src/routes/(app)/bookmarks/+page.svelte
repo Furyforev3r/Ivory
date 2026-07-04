@@ -5,9 +5,11 @@
     import { user } from "$lib/client/hooks/loginState"
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
+    import { fetchAuthorsByUID } from "$lib/client/utils/hydrateAuthors"
 
     let userInfo: any
     let posts: any[] | null = null
+    let authorsByUID: Record<string, any> = {}
 
     $: userInfo = $user
     $: if (browser && userInfo && userInfo !== "Loading..." && posts === null) loadBookmarks()
@@ -15,7 +17,9 @@
     async function loadBookmarks() {
         try {
             const response = await axios.get(`/api/getBookmarks?token=${userInfo.accessToken}&uid=${userInfo.uid}`)
-            posts = response.data.posts
+            const fetchedPosts = response.data.posts
+            authorsByUID = await fetchAuthorsByUID(fetchedPosts.map((post: any) => post.userUID))
+            posts = fetchedPosts
         } catch (error) {
             console.error(error)
             toast.error("Could not load bookmarks")
@@ -49,7 +53,7 @@
             <p class="empty">Posts you bookmark show up here.</p>
         {:else}
             {#each posts as post (post.id)}
-                <Post {post} on:deleted={handleDeleted} on:edited={handleEdited} />
+                <Post {post} author={authorsByUID[post.userUID]} on:deleted={handleDeleted} on:edited={handleEdited} />
             {/each}
         {/if}
     </div>
