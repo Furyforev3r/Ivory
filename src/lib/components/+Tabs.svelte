@@ -291,6 +291,37 @@
     </ul>
 </nav>
 
+<button class="fab" on:click={togglePost} aria-label="New post">
+    <Icon icon="material-symbols:edit-square-outline-rounded" width="24px" height="24px" color="fff" />
+</button>
+
+<nav class="bottomNav">
+    <a href='/' class:selected={isActive('/')} aria-label="Home">
+        <Icon icon={isActive('/') ? "material-symbols:home-rounded" : "material-symbols:home-outline-rounded"} width="26px" height="26px" />
+    </a>
+    <a href="/search" class:selected={isActive('/search')} aria-label="Search">
+        <Icon icon="material-symbols:search" width="26px" height="26px" />
+    </a>
+    <a href="/notifications" class:selected={isActive('/notifications')} aria-label="Notifications">
+        <span class="iconWithBadge">
+            <Icon icon={isActive('/notifications') ? "material-symbols:notifications-rounded" : "material-symbols:notifications-outline-rounded"} width="26px" height="26px" />
+            {#if $unreadCount > 0}
+                <span class="badge">{$unreadCount > 9 ? '9+' : $unreadCount}</span>
+            {/if}
+        </span>
+    </a>
+    <a
+        href={userAccount ? `/${userAccount.user.username}` : '#'}
+        class:selected={userAccount && currentPath === `/${userAccount.user.username}`}
+        aria-label="Profile"
+    >
+        <Icon icon={userAccount && currentPath === `/${userAccount.user.username}` ? "material-symbols:account-circle" : "material-symbols:account-circle-outline"} width="26px" height="26px" />
+    </a>
+    <a href="/settings" class:selected={isActive('/settings')} aria-label="Settings">
+        <Icon icon={isActive('/settings') ? "material-symbols:settings" : "material-symbols:settings-outline-rounded"} width="26px" height="26px" />
+    </a>
+</nav>
+
 <style>
     .postToast {
         position: fixed;
@@ -633,6 +664,14 @@
         }
     }
 
+    .fab {
+        display: none;
+    }
+
+    .bottomNav {
+        display: none;
+    }
+
     @media (max-width: 700px) {
         .postToastContainer {
             width: 90%;
@@ -640,7 +679,64 @@
         }
 
         .tabs {
-            width: 64px;
+            display: none;
+        }
+
+        .fab {
+            display: grid;
+            place-items: center;
+            position: fixed;
+            right: 1.1rem;
+            bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 1rem);
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: none;
+            background: var(--essential-announcement);
+            box-shadow: 0 6px 20px var(--shadow-color);
+            z-index: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .fab:hover {
+            opacity: 0.9;
+        }
+
+        .bottomNav {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 500;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            height: 56px;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            background: color-mix(in srgb, var(--background-elevated-base) 92%, transparent);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-top: 1px solid var(--gainsboro);
+        }
+
+        .bottomNav a {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            color: var(--text-base);
+            transition: background 0.2s;
+        }
+
+        .bottomNav a:hover {
+            background: var(--background-highlight);
+        }
+
+        .bottomNav a.selected :global(svg) {
+            color: var(--essential-announcement);
         }
     }
 </style>

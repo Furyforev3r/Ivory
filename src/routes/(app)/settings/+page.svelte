@@ -215,4 +215,10 @@
     .logoutRow:hover {
         background: rgba(244, 33, 46, 0.08);
     }
+
+    @media (max-width: 700px) {
+        .content {
+            padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+        }
+    }
 </style>

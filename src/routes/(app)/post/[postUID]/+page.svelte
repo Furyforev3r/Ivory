@@ -252,4 +252,10 @@
         display: flex;
         flex-direction: column;
     }
+
+    @media (max-width: 700px) {
+        .content {
+            padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+        }
+    }
 </style>

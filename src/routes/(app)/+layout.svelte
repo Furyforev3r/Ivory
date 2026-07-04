@@ -39,6 +39,7 @@
                 <Skeleton width="100%" height="80px" radius="0.6rem" />
             </div>
         </div>
+        <div class="skeletonBottomNav"></div>
     {:else if userInfo}
         <Tabs />
         <slot />
@@ -117,6 +118,27 @@
 
         .skeletonDiscover {
             display: none;
+        }
+    }
+
+    .skeletonBottomNav {
+        display: none;
+    }
+
+    @media (max-width: 700px) {
+        .skeletonTabs {
+            display: none;
+        }
+
+        .skeletonBottomNav {
+            display: block;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 56px;
+            background: var(--background-elevated-base);
+            border-top: 1px solid var(--gainsboro);
         }
     }
 </style>

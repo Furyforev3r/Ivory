@@ -440,4 +440,10 @@
     .terms li a:hover {
         text-decoration: underline;
     }
+
+    @media (max-width: 700px) {
+        .content {
+            padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+        }
+    }
 </style>
