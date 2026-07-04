@@ -33,7 +33,8 @@
 
     onMount(async () => {
         try {
-            let response = await axios.get("api/getRecentPosts?limit=6")
+            const viewerParam = userInfo && userInfo !== "Loading..." ? `&viewerUID=${userInfo.uid}` : ""
+            let response = await axios.get(`api/getRecentPosts?limit=6${viewerParam}`)
 
             if (response.status == 200 || response.status == 201) {
                 timeline = response.data
@@ -75,7 +76,8 @@
         showHistory = false
 
         try {
-            const response = await axios.get(`/api/search?query=${encodeURIComponent(trimmed)}`)
+            const viewerParam = userInfo && userInfo !== "Loading..." ? `&viewerUID=${userInfo.uid}` : ""
+            const response = await axios.get(`/api/search?query=${encodeURIComponent(trimmed)}${viewerParam}`)
 
             if (response.status === 200) {
                 searchResults = response.data.results

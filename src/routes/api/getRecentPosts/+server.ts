@@ -7,8 +7,9 @@ export async function GET({ url }) {
     const cursorParam = url.searchParams.get('cursor')
     const limit = limitParam ? parseInt(limitParam) : 10
     const cursor = cursorParam ? parseInt(cursorParam) : null
+    const viewerUID = url.searchParams.get('viewerUID')
 
-    const posts = await getRecentPosts(limit, cursor)
+    const posts = await getRecentPosts(limit, cursor, viewerUID)
 
     if (posts.success) {
       return json({ posts: posts }, { status: 200 })

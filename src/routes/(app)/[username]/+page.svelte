@@ -28,10 +28,12 @@
     let userPosts: any
     let loadedFor: string | null = null
     let following = false
+    let requested = false
     let followBusy = false
     let hoveringFollow = false
     let postNotifSubscribed = false
     let postNotifBusy = false
+    let postsPrivate = false
     let userListMode: "followers" | "following" | null = null
     let userAccount: any
     let adminEditing = false
@@ -114,6 +116,8 @@
         userPosts = null
         canEdit = false
         editing = false
+        requested = false
+        postsPrivate = false
 
         try {
             const response = await axios.get(`/api/getAccount/?username=${username}`)
@@ -129,18 +133,23 @@
                         axios.get(`/api/getPostNotificationStatus?targetUID=${userProfile.user.uid}&uid=${userInfo.uid}`)
                     ])
                     following = followResponse.data.following
+                    requested = followResponse.data.requested
                     postNotifSubscribed = notifResponse.data.subscribed
                 } catch (error) {
                     console.error(error)
                 }
             }
 
-            let postsResponse = await axios.get(`api/getPostsByUserUID?userUID=${userProfile.user.uid}&limit=100`)
-
-            if (postsResponse.status == 200 || postsResponse.status == 201) {
+            const viewerParam = userInfo && userInfo !== "Loading..." ? `&viewerUID=${userInfo.uid}` : ""
+            try {
+                let postsResponse = await axios.get(`api/getPostsByUserUID?userUID=${userProfile.user.uid}&limit=100${viewerParam}`)
                 userPosts = postsResponse.data
-            } else {
-                console.error(postsResponse.data.error)
+            } catch (error: any) {
+                if (error?.response?.data?.private) {
+                    postsPrivate = true
+                } else {
+                    console.error(error)
+                }
             }
         } catch (error) {
             console.error(error)
@@ -162,8 +171,6 @@
 
         followBusy = true
         const wasFollowing = following
-        following = !wasFollowing
-        userProfile.user.followersCount = (userProfile.user.followersCount ?? 0) + (following ? 1 : -1)
 
         try {
             const response = await axios.post(
@@ -171,9 +178,10 @@
                 { targetUID: userProfile.user.uid }
             )
             following = response.data.following
+            requested = response.data.requested
+            userProfile.user.followersCount = (userProfile.user.followersCount ?? 0) + (following && !wasFollowing ? 1 : !following && wasFollowing ? -1 : 0)
+            if (requested) toast.success("Follow request sent")
         } catch (error) {
-            following = wasFollowing
-            userProfile.user.followersCount = (userProfile.user.followersCount ?? 0) + (wasFollowing ? 1 : -1)
             toast.error("Could not update follow status")
         } finally {
             followBusy = false
@@ -454,12 +462,13 @@
                         <button
                             class="followButton"
                             class:following
+                            class:requested
                             on:click={toggleFollow}
                             on:mouseenter={() => hoveringFollow = true}
                             on:mouseleave={() => hoveringFollow = false}
                             disabled={followBusy}
                         >
-                            {following ? (hoveringFollow ? "Unfollow" : "Following") : "Follow"}
+                            {following ? (hoveringFollow ? "Unfollow" : "Following") : requested ? (hoveringFollow ? "Cancel" : "Requested") : "Follow"}
                         </button>
                     {/if}
                     {#if isAdmin && !canEdit}
@@ -495,7 +504,9 @@
                 <button class="contentButton selected">Posts</button>
             </div>
             <div class="posts">
-                {#if !userPosts}
+                {#if postsPrivate}
+                    <p class="empty">This account is private. Follow them to see their posts.</p>
+                {:else if !userPosts}
                     {#each Array(3) as _}
                         <PostSkeleton />
                     {/each}
@@ -821,6 +832,19 @@
         border-color: var(--essential-negative) !important;
     }
 
+    .followButton.requested {
+        background: var(--background-base) !important;
+        color: var(--text-base) !important;
+        border-color: var(--background-elevated-press) !important;
+        opacity: 1;
+    }
+
+    .followButton.requested:hover {
+        background: rgba(244, 33, 46, 0.08) !important;
+        color: var(--essential-negative) !important;
+        border-color: var(--essential-negative) !important;
+    }
+
     .followButton:disabled {
         opacity: 0.6;
         cursor: default;
@@ -894,6 +918,12 @@
         gap: 0.3rem;
         margin-block: 1rem;
         border-bottom: 1px solid var(--gainsboro);
+    }
+
+    .empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-subdued);
     }
 
     .contentButton, .selected {

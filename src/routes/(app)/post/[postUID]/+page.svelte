@@ -17,6 +17,7 @@
     let postUID: string
     let post: any = null
     let notFound = false
+    let isPrivate = false
     let loadedFor: string | null = null
 
     let replies: any[] = []
@@ -36,23 +37,29 @@
         loadedFor = uid
         post = null
         notFound = false
+        isPrivate = false
         replies = []
         repliesLoading = true
 
         try {
-            let response = await axios.get(`/api/getPostByUID?uid=${uid}`)
+            const viewerParam = userInfo && userInfo !== "Loading..." ? `&viewerUID=${userInfo.uid}` : ""
+            let response = await axios.get(`/api/getPostByUID?uid=${uid}${viewerParam}`)
 
             if (response.status == 200) {
                 post = response.data.post
             } else {
                 notFound = true
             }
-        } catch (error) {
-            console.error(error)
-            notFound = true
+        } catch (error: any) {
+            if (error?.response?.data?.private) {
+                isPrivate = true
+            } else {
+                notFound = true
+            }
         }
 
-        await loadReplies(uid)
+        if (!isPrivate) await loadReplies(uid)
+        repliesLoading = false
     }
 
     async function loadReplies(uid: string) {
@@ -107,6 +114,8 @@
     </div>
     {#if notFound}
         <p class="empty">This post doesn't exist.</p>
+    {:else if isPrivate}
+        <p class="empty">This post is from a private account. Follow them to see it.</p>
     {:else if post}
         <Post {post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
         <div class="replyComposer">

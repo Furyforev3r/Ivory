@@ -4,12 +4,13 @@ import { search } from "$lib/server/utils/firebaseAdminUtils"
 export async function GET({ url }) {
   try {
     const query = url.searchParams.get('query')
-    
+    const viewerUID = url.searchParams.get('viewerUID')
+
     if (!query) {
       return json({ error: 'Query parameter is required' }, { status: 400 })
     }
 
-    const searchResults = await search(query, 100)
+    const searchResults = await search(query, 100, viewerUID)
 
     if (searchResults.success) {
       return json(searchResults, { status: 200 })

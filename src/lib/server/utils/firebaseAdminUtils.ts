@@ -163,7 +163,30 @@ export async function registerUser(user) {
   }
 }
 
-export async function getRecentPosts(limit = 10, cursorMillis = null) {
+async function isPrivateAndBlocked(authorUID, viewerUID) {
+  if (!authorUID || viewerUID === authorUID) return false
+
+  const authorDoc = await db.collection('Users').doc(authorUID).get()
+  if (!authorDoc.exists || !authorDoc.data()!.private) return false
+
+  if (!viewerUID) return true
+
+  const followDoc = await db.collection('Follows').doc(`${viewerUID}_${authorUID}`).get()
+  return !followDoc.exists
+}
+
+async function filterBlockedPosts(posts, viewerUID) {
+  const uniqueAuthorUIDs = [...new Set(posts.map(post => post.userUID))]
+  const blockedMap = new Map(
+    await Promise.all(uniqueAuthorUIDs.map(async authorUID =>
+      [authorUID, await isPrivateAndBlocked(authorUID, viewerUID)] as [string, boolean]
+    ))
+  )
+
+  return posts.filter(post => !blockedMap.get(post.userUID))
+}
+
+export async function getRecentPosts(limit = 10, cursorMillis = null, viewerUID = null) {
   try {
     let query = db.collection('Posts').orderBy('uploadDate', 'desc')
 
@@ -174,10 +197,10 @@ export async function getRecentPosts(limit = 10, cursorMillis = null) {
     const postsSnapshot = await query.limit(limit).get()
 
     if (!postsSnapshot.empty) {
-      const posts = postsSnapshot.docs.map(doc => ({
+      const posts = await filterBlockedPosts(postsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-      }))
+      })), viewerUID)
 
       return { success: true, posts }
     } else {
@@ -189,8 +212,12 @@ export async function getRecentPosts(limit = 10, cursorMillis = null) {
   }
 }
 
-export async function getPostsByUserUID(userUID, limit = 10) {
+export async function getPostsByUserUID(userUID, limit = 10, viewerUID = null) {
   try {
+    if (await isPrivateAndBlocked(userUID, viewerUID)) {
+      return { success: false, message: 'This account is private', private: true }
+    }
+
     // Sorted in memory instead of via .orderBy() so this doesn't depend on a
     // Firestore composite index existing for (userUID, uploadDate).
     const postsSnapshot = await db.collection('Posts')
@@ -216,12 +243,16 @@ export async function getPostsByUserUID(userUID, limit = 10) {
   }
 }
 
-export async function getPostByUID(postUID: string) {
+export async function getPostByUID(postUID: string, viewerUID: string | null = null) {
   try {
     const postDoc = await db.collection('Posts').doc(postUID).get()
 
     if (postDoc.exists) {
-      const post = { id: postDoc.id, ...postDoc.data() }
+      const post = { id: postDoc.id, ...postDoc.data() } as any
+
+      if (await isPrivateAndBlocked(post.userUID, viewerUID)) {
+        return { success: false, message: 'This post is private', private: true }
+      }
 
       return { success: true, post: post }
     } else {
@@ -657,16 +688,30 @@ export async function toggleFollow(targetUID, uid, token) {
         targetRef.update({ followersCount: fieldValue.increment(-1) }),
         meRef.update({ followingCount: fieldValue.increment(-1) })
       ])
-      return { success: true, following: false }
-    } else {
-      await followRef.set({ followerUID: uid, followingUID: targetUID, createdAt: fieldValue.serverTimestamp() })
-      await Promise.all([
-        targetRef.update({ followersCount: fieldValue.increment(1) }),
-        meRef.update({ followingCount: fieldValue.increment(1) })
-      ])
-      await createNotification(targetUID, 'follow', uid)
-      return { success: true, following: true }
+      return { success: true, following: false, requested: false }
     }
+
+    if (targetDoc.data()!.private) {
+      const requestRef = db.collection('FollowRequests').doc(`${uid}_${targetUID}`)
+      const requestDoc = await requestRef.get()
+
+      if (requestDoc.exists) {
+        await requestRef.delete()
+        return { success: true, following: false, requested: false }
+      } else {
+        await requestRef.set({ requesterUID: uid, targetUID, createdAt: fieldValue.serverTimestamp() })
+        await createNotification(targetUID, 'follow_request', uid)
+        return { success: true, following: false, requested: true }
+      }
+    }
+
+    await followRef.set({ followerUID: uid, followingUID: targetUID, createdAt: fieldValue.serverTimestamp() })
+    await Promise.all([
+      targetRef.update({ followersCount: fieldValue.increment(1) }),
+      meRef.update({ followingCount: fieldValue.increment(1) })
+    ])
+    await createNotification(targetUID, 'follow', uid)
+    return { success: true, following: true, requested: false }
   } catch (error) {
     console.error('Error toggling follow:', error)
     return { success: false, error: 'Failed to toggle follow' }
@@ -675,15 +720,83 @@ export async function toggleFollow(targetUID, uid, token) {
 
 export async function getFollowStatus(targetUID, uid) {
   if (!uid || uid === targetUID) {
-    return { success: true, following: false }
+    return { success: true, following: false, requested: false }
   }
 
   try {
-    const followDoc = await db.collection('Follows').doc(`${uid}_${targetUID}`).get()
-    return { success: true, following: followDoc.exists }
+    const [followDoc, requestDoc] = await Promise.all([
+      db.collection('Follows').doc(`${uid}_${targetUID}`).get(),
+      db.collection('FollowRequests').doc(`${uid}_${targetUID}`).get()
+    ])
+    return { success: true, following: followDoc.exists, requested: requestDoc.exists }
   } catch (error) {
     console.error('Error fetching follow status:', error)
     return { success: false, error: 'Failed to fetch follow status' }
+  }
+}
+
+export async function getFollowRequests(uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const requestsSnapshot = await db.collection('FollowRequests').where('targetUID', '==', uid).get()
+
+    const requests = await Promise.all(requestsSnapshot.docs.map(async doc => {
+      const data = doc.data()
+      const result = await getSimpleUserByUID(data.requesterUID)
+      return result.success ? { requesterUID: data.requesterUID, createdAt: data.createdAt, user: result.user } : null
+    }))
+
+    return { success: true, requests: requests.filter(Boolean) }
+  } catch (error) {
+    console.error('Error fetching follow requests:', error)
+    return { success: false, error: 'Failed to fetch follow requests' }
+  }
+}
+
+export async function respondFollowRequest(uid, requesterUID, accept, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const requestRef = db.collection('FollowRequests').doc(`${requesterUID}_${uid}`)
+    const requestDoc = await requestRef.get()
+
+    if (!requestDoc.exists) {
+      return { success: false, message: 'Follow request not found' }
+    }
+
+    await requestRef.delete()
+
+    if (accept) {
+      const followRef = db.collection('Follows').doc(`${requesterUID}_${uid}`)
+      await followRef.set({ followerUID: requesterUID, followingUID: uid, createdAt: fieldValue.serverTimestamp() })
+      await Promise.all([
+        db.collection('Users').doc(uid).update({ followersCount: fieldValue.increment(1) }),
+        db.collection('Users').doc(requesterUID).update({ followingCount: fieldValue.increment(1) })
+      ])
+      await createNotification(requesterUID, 'follow_accepted', uid)
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error responding to follow request:', error)
+    return { success: false, error: 'Failed to respond to follow request' }
   }
 }
 
@@ -748,6 +861,26 @@ export async function updatePrivacySettings(uid, token, settingsUpdate) {
   } catch (error) {
     console.error('Error updating privacy settings:', error)
     return { success: false, error: 'Failed to update privacy settings' }
+  }
+}
+
+export async function updateAccountPrivacy(uid, token, isPrivate) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    await db.collection('Users').doc(uid).update({ private: isPrivate })
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating account privacy:', error)
+    return { success: false, error: 'Failed to update account privacy' }
   }
 }
 
@@ -957,7 +1090,7 @@ export async function adminEditUserProfile(adminUID, targetUID, updatedUserData,
   }
 }
 
-export async function search(query, limit = 10) {
+export async function search(query, limit = 10, viewerUID = null) {
   try {
     const usersByUsernameSnapshot = await db.collection('Users')
       .where('username', '>=', query)
@@ -989,18 +1122,20 @@ export async function search(query, limit = 10) {
 
     const normalizedQuery = query.toLowerCase()
     const postsSnapshot = await db.collection('Posts').get()
-    
-    let posts = postsSnapshot.docs.map(doc => ({
+
+    const allPosts = postsSnapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
       isUser: false
     }))
-    
-    const filteredItems = posts.filter(post => 
-        post?.content?.toLowerCase().includes(normalizedQuery.toLowerCase())
+
+    const matchedPosts = allPosts.filter(post =>
+      post?.content?.toLowerCase().includes(normalizedQuery)
     )
 
-    const results = [...users, ...posts]
+    const visiblePosts = (await filterBlockedPosts(matchedPosts, viewerUID)).slice(0, limit)
+
+    const results = [...users, ...visiblePosts]
 
     return { success: true, results }
   } catch (error) {

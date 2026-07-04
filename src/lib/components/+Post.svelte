@@ -32,6 +32,7 @@
     let author: any = null
     let originalPost: any = null
     let originalAuthor: any = null
+    let originalBlocked = false
 
     let liked = false
     let reposted = false
@@ -81,13 +82,15 @@
 
         if (post.repostOf) {
             try {
-                const response = await axios.get(`/api/getPostByUID?uid=${post.repostOf}`)
+                const viewerParam = userInfo && userInfo !== "Loading..." ? `&viewerUID=${userInfo.uid}` : ""
+                const response = await axios.get(`/api/getPostByUID?uid=${post.repostOf}${viewerParam}`)
                 if (response.status === 200) {
                     originalPost = response.data.post
                     const authorResponse = await axios.get(`/api/getSimpleUser?uid=${originalPost.userUID}`)
                     if (authorResponse.status === 200) originalAuthor = authorResponse.data.user
                 }
-            } catch (error) {
+            } catch (error: any) {
+                if (error?.response?.status === 403) originalBlocked = true
                 console.error(error)
             }
         }
@@ -338,6 +341,8 @@
         </div>
         {#if originalPost}
             <svelte:self post={originalPost} />
+        {:else if originalBlocked}
+            <p class="privateNotice">This post is from a private account.</p>
         {:else}
             <PostSkeleton />
         {/if}
@@ -419,6 +424,10 @@
                                 {:else if originalPost.image && !originalMediaError}
                                     <img class="postImage" src={originalPost.imageURL} alt="Quoted attachment" loading="lazy" decoding="async" on:error={handleOriginalMediaError}>
                                 {/if}
+                            </div>
+                        {:else if originalBlocked}
+                            <div class="embeddedPost">
+                                <p class="privateNotice">This post is from a private account.</p>
                             </div>
                         {:else}
                             <div class="embeddedPost">
@@ -851,6 +860,13 @@
 
     .embeddedPost .content {
         font-size: 14px;
+    }
+
+    .privateNotice {
+        padding: 0.8rem 1rem;
+        color: var(--text-subdued);
+        font-size: 14px;
+        font-style: italic;
     }
 
     .postIcons {

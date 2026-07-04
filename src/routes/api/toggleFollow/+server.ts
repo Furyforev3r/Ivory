@@ -14,7 +14,7 @@ export async function POST({ url, request }) {
     const result = await toggleFollow(targetUID, uid, token)
 
     if (result.success) {
-      return json({ following: result.following }, { status: 200 })
+      return json({ following: result.following, requested: result.requested }, { status: 200 })
     } else {
       return json({ error: result.message || result.error }, { status: 403 })
     }

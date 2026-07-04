@@ -27,7 +27,9 @@
         reply: "bx:comment",
         repost: "mdi:repost",
         post: "material-symbols:campaign-rounded",
-        mention: "material-symbols:alternate-email"
+        mention: "material-symbols:alternate-email",
+        follow_request: "material-symbols:person-add-rounded",
+        follow_accepted: "material-symbols:person-check-rounded"
     }
 
     const ICON_COLORS: Record<string, string> = {
@@ -36,7 +38,9 @@
         reply: "var(--essential-announcement)",
         repost: "var(--essential-repost)",
         post: "var(--essential-announcement)",
-        mention: "var(--essential-announcement)"
+        mention: "var(--essential-announcement)",
+        follow_request: "var(--essential-announcement)",
+        follow_accepted: "var(--essential-announcement)"
     }
 
     function actionText(type: string) {
@@ -47,12 +51,16 @@
             case "repost": return "reposted your post"
             case "post": return "posted something new"
             case "mention": return "mentioned you in a post"
+            case "follow_request": return "requested to follow you"
+            case "follow_accepted": return "accepted your follow request"
             default: return ""
         }
     }
 
     function href() {
-        if (notification.type === "follow") return actor ? `/${actor.username}` : "#"
+        if (["follow", "follow_request", "follow_accepted"].includes(notification.type)) {
+            return actor ? `/${actor.username}` : "#"
+        }
         return notification.postUID ? `/post/${notification.postUID}` : "#"
     }
 

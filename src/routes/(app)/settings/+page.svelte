@@ -11,15 +11,18 @@
     let userInfo: any
     let userAccount
     let hideFollowLists = false
-    let hideFollowListsLoadedFor: string | null = null
+    let privateAccount = false
+    let privacyLoadedFor: string | null = null
     let updatingPrivacy = false
+    let updatingAccountPrivacy = false
 
     $: userInfo = $user
     $: userAccount = $account
     $: if (userInfo && userInfo !== "Loading...") ensureAccount(userInfo.uid)
-    $: if (userAccount && hideFollowListsLoadedFor !== userAccount.user.uid) {
+    $: if (userAccount && privacyLoadedFor !== userAccount.user.uid) {
         hideFollowLists = !!userAccount.user.settings?.hideFollowLists
-        hideFollowListsLoadedFor = userAccount.user.uid
+        privateAccount = !!userAccount.user.private
+        privacyLoadedFor = userAccount.user.uid
     }
 
     async function toggleHideFollowLists() {
@@ -38,6 +41,25 @@
             toast.error("Could not update privacy settings")
         } finally {
             updatingPrivacy = false
+        }
+    }
+
+    async function togglePrivateAccount() {
+        if (updatingAccountPrivacy || !userInfo) return
+
+        const previous = privateAccount
+        privateAccount = !previous
+        updatingAccountPrivacy = true
+
+        try {
+            await axios.post(`/api/updateAccountPrivacy?token=${userInfo.accessToken}&uid=${userInfo.uid}`, {
+                isPrivate: privateAccount
+            })
+        } catch (error) {
+            privateAccount = previous
+            toast.error("Could not update account privacy")
+        } finally {
+            updatingAccountPrivacy = false
         }
     }
 
@@ -98,6 +120,15 @@
 
     <section class="section">
         <h3>Privacy</h3>
+        <button type="button" class="toggleRow" on:click={togglePrivateAccount} disabled={updatingAccountPrivacy}>
+            <div class="toggleInfo">
+                <p class="toggleLabel">Private account</p>
+                <p class="toggleDescription">When on, only approved followers can see your posts. New followers need your approval.</p>
+            </div>
+            <span class="switch" class:on={privateAccount}>
+                <span class="switchKnob" />
+            </span>
+        </button>
         <button type="button" class="toggleRow" on:click={toggleHideFollowLists} disabled={updatingPrivacy}>
             <div class="toggleInfo">
                 <p class="toggleLabel">Hide followers &amp; following lists</p>
@@ -250,6 +281,10 @@
         border: 0.1rem solid var(--background-elevated-press);
         background: none;
         text-align: left;
+    }
+
+    .toggleRow + .toggleRow {
+        margin-top: 0.6rem;
     }
 
     .toggleRow:disabled {

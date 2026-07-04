@@ -5,6 +5,10 @@
     import Composer from "$lib/components/+Composer.svelte"
     import toast from "svelte-french-toast"
     import axios from "axios"
+    import { user } from "$lib/client/hooks/loginState"
+
+    let userInfo: any
+    $: userInfo = $user
 
     let timeline: any[] = []
     let loading = false
@@ -30,7 +34,8 @@
         const cursor = cursorFromLastPost()
 
         try {
-            let response = await axios.get(`api/getRecentPosts?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`)
+            const viewerParam = userInfo && userInfo !== "Loading..." ? `&viewerUID=${userInfo.uid}` : ""
+            let response = await axios.get(`api/getRecentPosts?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}${viewerParam}`)
 
             if (response.status == 200 || response.status == 201) {
                 const newPosts = response.data.posts.posts

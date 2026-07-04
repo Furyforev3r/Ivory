@@ -13,7 +13,7 @@ export async function GET({ url }) {
     const result = await getFollowStatus(targetUID, uid)
 
     if (result.success) {
-      return json({ following: result.following }, { status: 200 })
+      return json({ following: result.following, requested: result.requested }, { status: 200 })
     } else {
       return json({ error: result.error }, { status: 500 })
     }
