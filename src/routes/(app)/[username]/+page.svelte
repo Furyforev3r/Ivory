@@ -95,6 +95,16 @@
         }
     }
 
+    function handlePostDeleted(event: CustomEvent<{ id: string }>) {
+        userPosts.posts.posts = userPosts.posts.posts.filter((post: any) => post.id !== event.detail.id)
+    }
+
+    function handlePostEdited(event: CustomEvent<{ post: any }>) {
+        userPosts.posts.posts = userPosts.posts.posts.map((post: any) =>
+            post.id === event.detail.post.id ? event.detail.post : post
+        )
+    }
+
     async function toggleFollow() {
         if (followBusy || !userInfo) return
 
@@ -426,7 +436,7 @@
                     {/each}
                 {:else}
                     {#each userPosts.posts.posts as post (post.id)}
-                        <Post post={post}/>
+                        <Post post={post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                     {/each}
                 {/if}
             </div>

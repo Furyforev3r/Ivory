@@ -46,6 +46,24 @@
         }
     })
 
+    function handlePostDeleted(event: CustomEvent<{ id: string }>) {
+        searchResults = searchResults.filter((result: any) => result.isUser || result.id !== event.detail.id)
+        if (timeline) {
+            timeline.posts.posts = timeline.posts.posts.filter((post: any) => post.id !== event.detail.id)
+        }
+    }
+
+    function handlePostEdited(event: CustomEvent<{ post: any }>) {
+        searchResults = searchResults.map((result: any) =>
+            !result.isUser && result.id === event.detail.post.id ? event.detail.post : result
+        )
+        if (timeline) {
+            timeline.posts.posts = timeline.posts.posts.map((post: any) =>
+                post.id === event.detail.post.id ? event.detail.post : post
+            )
+        }
+    }
+
     async function runSearch(queryValue: string) {
         const trimmed = queryValue.trim()
         if (!trimmed) return
@@ -182,7 +200,7 @@
                         </div>
                     </a>
                 {:else}
-                    <Post post={result}/>
+                    <Post post={result} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                 {/if}
             {/each}
         </div>
@@ -196,7 +214,7 @@
                     {/each}
                 {:else if timeline}
                     {#each timeline.posts.posts as post (post.id)}
-                        <Post post={post}/>
+                        <Post post={post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
                     {/each}
                 {/if}
             </div>

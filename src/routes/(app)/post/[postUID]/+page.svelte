@@ -1,6 +1,7 @@
 <script lang="ts">
     import Icon from "@iconify/svelte"
     import { page } from "$app/stores"
+    import { goto } from "$app/navigation"
     import { browser } from "$app/environment"
     import { user } from "$lib/client/hooks/loginState"
     import { account, ensureAccount } from "$lib/client/hooks/accountState"
@@ -66,6 +67,14 @@
         }
     }
 
+    function handlePostDeleted() {
+        goto("/")
+    }
+
+    function handlePostEdited(event: CustomEvent<{ post: any }>) {
+        post = event.detail.post
+    }
+
     async function submitReply() {
         if (!replyValue.trim() || posting || !userInfo) return
 
@@ -99,7 +108,7 @@
     {#if notFound}
         <p class="empty">This post doesn't exist.</p>
     {:else if post}
-        <Post {post} />
+        <Post {post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
         <div class="replyComposer">
             {#if userAccount}
                 <img src={userAccount.user.photoURL} alt="Your avatar" class="composerAvatar" />

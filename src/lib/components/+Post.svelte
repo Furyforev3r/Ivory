@@ -1,17 +1,21 @@
 <script lang="ts">
     import Icon from "@iconify/svelte"
-    import { onMount } from "svelte"
+    import { onMount, createEventDispatcher } from "svelte"
     import axios from "axios"
+    import autosize from "svelte-autosize"
     import { formatDistanceToNow } from "date-fns"
     import { ptBR } from "date-fns/locale"
     import { user } from "$lib/client/hooks/loginState"
     import toast from "svelte-french-toast"
+    import { fade, scale } from "svelte/transition"
     import PostSkeleton from "./+PostSkeleton.svelte"
     import QuoteModal from "./+QuoteModal.svelte"
     import { shareLink } from "$lib/client/utils/share"
 
     export let post: any
     export let compact = false
+
+    const dispatch = createEventDispatcher()
 
     let userInfo: any
     $: userInfo = $user
@@ -31,6 +35,15 @@
     let quoting = false
     let mediaError = false
     let originalMediaError = false
+
+    let menuOpen = false
+    let editing = false
+    let editContent = ""
+    let savingEdit = false
+    let deleting = false
+    let showHistory = false
+
+    $: isOwn = !!userInfo && userInfo !== "Loading..." && userInfo.uid === post?.userUID
 
     function handleMediaError() {
         mediaError = true
@@ -192,9 +205,93 @@
         if (result === "copied") toast.success("Link copied to clipboard")
         else if (result === "failed") toast.error("Could not share")
     }
+
+    function toggleMenu(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+        menuOpen = !menuOpen
+    }
+
+    function closeMenu() {
+        menuOpen = false
+    }
+
+    function startEdit(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+        editContent = post.content ?? ""
+        editing = true
+        menuOpen = false
+    }
+
+    function cancelEdit(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+        editing = false
+    }
+
+    async function saveEdit(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        if (!editContent.trim()) {
+            toast.error("Post cannot be empty")
+            return
+        }
+
+        savingEdit = true
+        try {
+            const response = await axios.post(`/api/editPost?token=${userInfo.accessToken}&uid=${userInfo.uid}`, {
+                postUID: post.id,
+                content: editContent
+            })
+            post = { ...post, ...response.data.post }
+            editing = false
+            dispatch("edited", { post })
+            toast.success("Post updated")
+        } catch (error) {
+            toast.error("Could not edit post")
+        } finally {
+            savingEdit = false
+        }
+    }
+
+    async function handleDelete(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+        menuOpen = false
+
+        if (!confirm("Delete this post? This cannot be undone.")) return
+
+        deleting = true
+        try {
+            await axios.delete(`/api/deletePost?token=${userInfo.accessToken}&uid=${userInfo.uid}&postUID=${post.id}`)
+            dispatch("deleted", { id: post.id })
+            toast.success("Post deleted")
+        } catch (error) {
+            toast.error("Could not delete post")
+            deleting = false
+        }
+    }
+
+    function openHistory(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+        showHistory = true
+    }
+
+    function closeHistory() {
+        showHistory = false
+    }
+
+    function formatHistoryTimestamp(timestamp: any) {
+        if (!timestamp?._seconds) return ""
+        const date = new Date(timestamp._seconds * 1000 + (timestamp._nanoseconds || 0) / 1e6)
+        return formatDistanceToNow(date, { locale: ptBR, addSuffix: true })
+    }
 </script>
 
-<svelte:window on:click={closeRepostMenu} />
+<svelte:window on:click={() => { closeRepostMenu(); closeMenu() }} />
 
 {#if isPureRepost}
     <div class="repostGroup">
@@ -226,9 +323,42 @@
                     <p class="username">@{author.username}</p>
                     <span class="username">·</span>
                     <p class="username">{formatTimestamp(post.uploadDate)}</p>
+                    {#if post.edited}
+                        <span class="username">·</span>
+                        <button type="button" class="editedLabel" on:click={openHistory}>Post editado</button>
+                    {/if}
+                    {#if isOwn && !compact}
+                        <div class="postMenuWrap">
+                            <button type="button" class="iconButton menuButton" on:click={toggleMenu} aria-label="Post options">
+                                <Icon icon="material-symbols:more-horiz" width="20px" height="20px" />
+                            </button>
+                            {#if menuOpen}
+                                <div class="postMenu" role="menu">
+                                    <button type="button" on:click={startEdit}>
+                                        <Icon icon="material-symbols:edit-outline-rounded" width="18" height="18" />
+                                        Edit
+                                    </button>
+                                    <button type="button" class="dangerItem" on:click={handleDelete} disabled={deleting}>
+                                        <Icon icon="material-symbols:delete-outline-rounded" width="18" height="18" />
+                                        {deleting ? "Deleting..." : "Delete"}
+                                    </button>
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
                 </div>
                 <div class="postContent">
-                    {#if post.content}
+                    {#if editing}
+                        <div class="editBox" on:click|stopPropagation role="presentation">
+                            <textarea use:autosize maxlength="300" bind:value={editContent}></textarea>
+                            <div class="editActions">
+                                <button type="button" class="cancelEdit" on:click={cancelEdit}>Cancel</button>
+                                <button type="button" class="saveEdit" on:click={saveEdit} disabled={savingEdit}>
+                                    {savingEdit ? "Saving..." : "Save"}
+                                </button>
+                            </div>
+                        </div>
+                    {:else if post.content}
                         <p class="content">{post.content}</p>
                     {/if}
                     {#if post.image && !mediaError && post.mediaType === "video"}
@@ -310,6 +440,31 @@
     <QuoteModal {originalPost} {originalAuthor} on:submit={submitQuote} on:cancel={() => quoting = false} />
 {/if}
 
+{#if showHistory}
+    <div class="historyOverlay" on:click|self={closeHistory} role="presentation" transition:fade={{ duration: 150 }}>
+        <div class="historyModal" transition:scale={{ duration: 150, start: 0.96 }}>
+            <div class="historyHead">
+                <p class="historyTitle">Edit history</p>
+                <button type="button" on:click={closeHistory} aria-label="Close">
+                    <Icon icon="material-symbols:close-rounded" width="20" height="20" />
+                </button>
+            </div>
+            <div class="historyList">
+                {#each [...(post.editHistory ?? [])].reverse() as entry, i (i)}
+                    <div class="historyEntry">
+                        <p class="historyTimestamp">{formatHistoryTimestamp(entry.editedAt)}</p>
+                        <p class="content">{entry.content}</p>
+                    </div>
+                {/each}
+                <div class="historyEntry">
+                    <p class="historyTimestamp">Current</p>
+                    <p class="content">{post.content}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
     .repostGroup {
         display: flex;
@@ -360,11 +515,209 @@
     }
 
     .postContentContainer {
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 0.1rem;
         min-width: 0;
         flex-grow: 1;
+    }
+
+    .postMenuWrap {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+
+    .menuButton {
+        padding: 0.4rem;
+    }
+
+    .postMenu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 0.3rem;
+        background: var(--background-base);
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        display: flex;
+        flex-direction: column;
+        min-width: 160px;
+        overflow: hidden;
+        z-index: 50;
+    }
+
+    .postMenu button {
+        cursor: pointer;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.8rem 1rem;
+        border: none;
+        background: none;
+        color: var(--text-base);
+        font-size: 14px;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .postMenu button:hover {
+        background: var(--background-highlight);
+    }
+
+    .postMenu .dangerItem {
+        color: var(--essential-negative);
+    }
+
+    .editedLabel {
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0;
+        color: var(--text-subdued);
+        font-size: 16px;
+        text-decoration: underline;
+    }
+
+    .editedLabel:hover {
+        color: var(--essential-announcement);
+    }
+
+    .editBox {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .editBox textarea {
+        width: 100%;
+        min-height: 3rem;
+        padding: 0.6rem 0.8rem;
+        background: var(--background-elevated-highlight);
+        border-radius: 0.8rem;
+        border: none;
+        outline: none;
+        color: var(--text-base);
+        font-size: 16px;
+        font-family: inherit;
+        resize: none;
+    }
+
+    .editActions {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    .cancelEdit, .saveEdit {
+        cursor: pointer;
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 13px;
+        border: none;
+    }
+
+    .cancelEdit {
+        background: var(--white-smoke);
+        color: var(--text-subdued);
+        border: 0.1rem solid var(--background-elevated-press);
+    }
+
+    .saveEdit {
+        background: var(--essential-announcement);
+        color: #fff;
+    }
+
+    .saveEdit:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .historyOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 900;
+        overflow: auto;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    .historyModal {
+        margin-top: 5%;
+        width: 40%;
+        max-height: 70%;
+        overflow-y: auto;
+        background: var(--background-base);
+        padding: 1.2rem;
+        border-radius: 1rem;
+        box-shadow: 0 10px 40px var(--shadow-color);
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .historyHead {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .historyHead button {
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-base);
+    }
+
+    .historyHead button:hover {
+        background: var(--background-highlight);
+    }
+
+    .historyTitle {
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .historyList {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .historyEntry {
+        padding: 0.8rem;
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+    }
+
+    .historyTimestamp {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-subdued);
+        margin-bottom: 0.3rem;
+    }
+
+    @media (max-width: 700px) {
+        .historyModal {
+            width: 90%;
+        }
     }
 
     .postInfo {

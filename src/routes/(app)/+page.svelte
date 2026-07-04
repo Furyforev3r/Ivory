@@ -65,6 +65,14 @@
     function handlePosted(event: CustomEvent<{ post: any }>) {
         timeline = [event.detail.post, ...timeline]
     }
+
+    function handleDeleted(event: CustomEvent<{ id: string }>) {
+        timeline = timeline.filter((post: any) => post.id !== event.detail.id)
+    }
+
+    function handleEdited(event: CustomEvent<{ post: any }>) {
+        timeline = timeline.map((post: any) => post.id === event.detail.post.id ? event.detail.post : post)
+    }
 </script>
 
 <svelte:head>
@@ -84,7 +92,7 @@
             {/each}
         {:else}
             {#each timeline as post (post.id)}
-                <Post post={post} />
+                <Post post={post} on:deleted={handleDeleted} on:edited={handleEdited} />
             {/each}
 
             {#if loading && hasMore}

@@ -261,6 +261,84 @@ export async function newPost(post, token) {
   }
 }
 
+export async function editPost(postUID, uid, content, token) {
+  try {
+    const tokenVerification = await verifyToken(token)
+
+    if (!tokenVerification.success) {
+      return { success: false, message: tokenVerification.error }
+    }
+
+    if (tokenVerification.uid !== uid) {
+      return { success: false, message: 'You do not have permission to do this' }
+    }
+
+    const postRef = db.collection('Posts').doc(postUID)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      return { success: false, message: 'Post not found' }
+    }
+
+    const postData = postDoc.data()!
+
+    if (postData.userUID !== uid) {
+      return { success: false, message: 'You do not have permission to edit this post' }
+    }
+
+    const historyEntry = {
+      content: postData.content ?? '',
+      editedAt: postData.editedAt ?? postData.uploadDate ?? Timestamp.now(),
+    }
+
+    await postRef.update({
+      content,
+      edited: true,
+      editedAt: fieldValue.serverTimestamp(),
+      editHistory: fieldValue.arrayUnion(historyEntry),
+    })
+
+    const updatedDoc = await postRef.get()
+
+    return { success: true, post: { id: postRef.id, ...updatedDoc.data() } }
+  } catch (error) {
+    console.error('Error editing post:', error)
+    return { success: false, error: 'Failed to edit post' }
+  }
+}
+
+export async function deletePost(postUID, uid, token) {
+  try {
+    const tokenVerification = await verifyToken(token)
+
+    if (!tokenVerification.success) {
+      return { success: false, message: tokenVerification.error }
+    }
+
+    if (tokenVerification.uid !== uid) {
+      return { success: false, message: 'You do not have permission to do this' }
+    }
+
+    const postRef = db.collection('Posts').doc(postUID)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      return { success: false, message: 'Post not found' }
+    }
+
+    if (postDoc.data()!.userUID !== uid) {
+      return { success: false, message: 'You do not have permission to delete this post' }
+    }
+
+    await postRef.delete()
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting post:', error)
+    return { success: false, error: 'Failed to delete post' }
+  }
+}
+
 export async function toggleLike(postUID, uid, token) {
   const tokenVerification = await verifyToken(token)
 
