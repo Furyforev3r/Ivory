@@ -6,6 +6,7 @@
     import { formatDistanceToNow } from "date-fns"
     import { ptBR } from "date-fns/locale"
     import { user } from "$lib/client/hooks/loginState"
+    import { account } from "$lib/client/hooks/accountState"
     import toast from "svelte-french-toast"
     import { fade, scale } from "svelte/transition"
     import { goto } from "$app/navigation"
@@ -23,13 +24,16 @@
 
     export let post: any
     export let compact = false
+    export let pinned = false
+    export let author: any = null
 
     const dispatch = createEventDispatcher()
 
     let userInfo: any
+    let userAccount: any
     $: userInfo = $user
+    $: userAccount = $account
 
-    let author: any = null
     let originalPost: any = null
     let originalAuthor: any = null
     let originalBlocked = false
@@ -54,8 +58,24 @@
     let savingEdit = false
     let deleting = false
     let showHistory = false
+    let pinning = false
+
+    let pollVotedOption: number | null = null
+    let pollOptions: any[] = []
+    let votingPoll = false
+
+    $: pollOptions = post?.poll?.options ?? []
+    $: pollTotalVotes = pollOptions.reduce((sum, option) => sum + (option.votes || 0), 0)
+    $: pollExpired = !!post?.poll?.expiresAt && post.poll.expiresAt._seconds * 1000 < Date.now()
+    $: pollShowResults = pollVotedOption !== null || pollExpired
+
+    const AUDIENCE_LABELS: Record<string, string> = {
+        following: "People they follow can reply",
+        mentioned: "Only mentioned people can reply"
+    }
 
     $: isOwn = !!userInfo && userInfo !== "Loading..." && userInfo.uid === post?.userUID
+    $: isPinnedByAuthor = isOwn && userAccount?.user?.pinnedPostUID === post?.id
 
     function handleMediaError() {
         mediaError = true
@@ -73,11 +93,13 @@
         repliesCount = post.repliesCount ?? 0
         repostsCount = post.repostsCount ?? 0
 
-        try {
-            const response = await axios.get(`/api/getSimpleUser?uid=${post.userUID}`)
-            if (response.status === 200) author = response.data.user
-        } catch (error) {
-            console.error(error)
+        if (!author) {
+            try {
+                const response = await axios.get(`/api/getSimpleUser?uid=${post.userUID}`)
+                if (response.status === 200) author = response.data.user
+            } catch (error) {
+                console.error(error)
+            }
         }
 
         if (post.repostOf) {
@@ -102,6 +124,7 @@
                     liked = response.data.liked
                     reposted = response.data.reposted
                     bookmarked = response.data.bookmarked
+                    pollVotedOption = response.data.pollVotedOption
                 }
             } catch (error) {
                 console.error(error)
@@ -163,6 +186,48 @@
             toast.error("Could not update bookmark")
         } finally {
             busyBookmark = false
+        }
+    }
+
+    async function handleVotePoll(event: Event, optionIndex: number) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        if (votingPoll || pollVotedOption !== null || pollExpired || !requireAuth()) return
+
+        votingPoll = true
+        try {
+            const response = await axios.post(`/api/votePoll?token=${userInfo.accessToken}&uid=${userInfo.uid}`, {
+                postUID: post.id,
+                optionIndex
+            })
+            post = { ...post, poll: { ...post.poll, options: response.data.options } }
+            pollVotedOption = optionIndex
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || "Could not vote")
+        } finally {
+            votingPoll = false
+        }
+    }
+
+    async function handleTogglePin(event: Event) {
+        event.preventDefault()
+        event.stopPropagation()
+        menuOpen = false
+
+        if (pinning) return
+
+        pinning = true
+        try {
+            const response = await axios.post(`/api/togglePinPost?token=${userInfo.accessToken}&uid=${userInfo.uid}`, {
+                postUID: post.id
+            })
+            account.update(acc => acc ? { ...acc, user: { ...acc.user, pinnedPostUID: response.data.pinnedPostUID } } : acc)
+            toast.success(response.data.pinnedPostUID === post.id ? "Post pinned to your profile" : "Post unpinned")
+        } catch (error) {
+            toast.error("Could not update pin")
+        } finally {
+            pinning = false
         }
     }
 
@@ -356,6 +421,12 @@
                 <img class="userPic" alt={author.displayName} src={author.photoURL} width="52px" height="52px" loading="lazy" decoding="async" />
             </a>
             <div class="postContentContainer">
+                {#if pinned}
+                    <div class="pinnedLabel">
+                        <Icon icon="material-symbols:keep-rounded" width="14" height="14" />
+                        <span>Pinned post</span>
+                    </div>
+                {/if}
                 <div class="postInfo">
                     <p class="displayName">{author.displayName}</p>
                     <UserBadges verified={author.verified} admin={author.admin} size="15" />
@@ -373,6 +444,10 @@
                             </button>
                             {#if menuOpen}
                                 <div class="postMenu" role="menu">
+                                    <button type="button" on:click={handleTogglePin} disabled={pinning}>
+                                        <Icon icon="material-symbols:keep-outline" width="18" height="18" />
+                                        {isPinnedByAuthor ? "Unpin from profile" : "Pin to profile"}
+                                    </button>
                                     <button type="button" on:click={startEdit}>
                                         <Icon icon="material-symbols:edit-outline-rounded" width="18" height="18" />
                                         Edit
@@ -406,6 +481,38 @@
                         </div>
                     {:else if post.image && !mediaError}
                         <img class="postImage" src={post.imageURL} alt="Post attachment" loading="lazy" decoding="async" on:error={handleMediaError}>
+                    {/if}
+                    {#if pollOptions.length > 0}
+                        <div class="poll" on:click|stopPropagation role="presentation">
+                            {#each pollOptions as option, index}
+                                {@const percent = pollTotalVotes > 0 ? Math.round(((option.votes || 0) / pollTotalVotes) * 100) : 0}
+                                <button
+                                    type="button"
+                                    class="pollOption"
+                                    class:voted={pollVotedOption === index}
+                                    disabled={pollShowResults || votingPoll}
+                                    on:click={(e) => handleVotePoll(e, index)}
+                                >
+                                    {#if pollShowResults}
+                                        <span class="pollBar" style={`width:${percent}%`} />
+                                    {/if}
+                                    <span class="pollOptionText">{option.text}</span>
+                                    {#if pollShowResults}
+                                        <span class="pollPercent">{percent}%</span>
+                                    {/if}
+                                </button>
+                            {/each}
+                            <p class="pollMeta">
+                                {pollTotalVotes} {pollTotalVotes === 1 ? "vote" : "votes"}
+                                {#if pollExpired}· Poll ended{:else if post.poll?.expiresAt}· Ends {formatTimestamp(post.poll.expiresAt)}{/if}
+                            </p>
+                        </div>
+                    {/if}
+                    {#if post.replyAudience && post.replyAudience !== "everyone"}
+                        <p class="audienceNotice">
+                            <Icon icon="material-symbols:info-outline-rounded" width="14" height="14" />
+                            {AUDIENCE_LABELS[post.replyAudience]}
+                        </p>
                     {/if}
                     {#if isQuoteRepost}
                         {#if originalPost && originalAuthor}
@@ -867,6 +974,84 @@
         color: var(--text-subdued);
         font-size: 14px;
         font-style: italic;
+    }
+
+    .pinnedLabel {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-subdued);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .poll {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .pollOption {
+        position: relative;
+        cursor: pointer;
+        overflow: hidden;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 0.7rem 1rem;
+        border-radius: 999px;
+        border: 1px solid var(--essential-announcement);
+        background: var(--background-base);
+        color: var(--text-base);
+        font-size: 14px;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .pollOption:disabled {
+        cursor: default;
+    }
+
+    .pollOption:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--essential-announcement) 8%, transparent);
+    }
+
+    .pollOption.voted {
+        border-color: var(--essential-announcement);
+        font-weight: 800;
+    }
+
+    .pollBar {
+        position: absolute;
+        inset: 0 auto 0 0;
+        background: color-mix(in srgb, var(--essential-announcement) 18%, transparent);
+        transition: width 0.3s;
+        z-index: 0;
+    }
+
+    .pollOptionText, .pollPercent {
+        position: relative;
+        z-index: 1;
+    }
+
+    .pollMeta {
+        color: var(--text-subdued);
+        font-size: 13px;
+    }
+
+    .audienceNotice {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-subdued);
+        font-size: 13px;
     }
 
     .postIcons {

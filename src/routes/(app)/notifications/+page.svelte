@@ -11,9 +11,11 @@
     $: userInfo = $user
 
     let loading = true
-    let activeTab: "all" | "requests" = "all"
+    let activeTab: "all" | "mentions" | "requests" = "all"
     let requests: any[] | null = null
     let respondingUID: string | null = null
+
+    $: mentionNotifications = $notifications.filter((notification: any) => notification.type === "mention")
 
     function toMillis(timestamp: any) {
         if (!timestamp) return 0
@@ -29,7 +31,7 @@
         }
     })
 
-    async function selectTab(tab: "all" | "requests") {
+    async function selectTab(tab: "all" | "mentions" | "requests") {
         activeTab = tab
         if (tab === "requests" && requests === null) {
             await loadRequests()
@@ -72,10 +74,13 @@
 </svelte:head>
 
 <div class="content">
-    <div class="header">
-        <h2>Notifications</h2>
+    <div class="stickyHead">
+        <div class="header">
+            <h2>Notifications</h2>
+        </div>
         <div class="tabs">
             <button type="button" class:selected={activeTab === "all"} on:click={() => selectTab("all")}>All</button>
+            <button type="button" class:selected={activeTab === "mentions"} on:click={() => selectTab("mentions")}>Mentions</button>
             <button type="button" class:selected={activeTab === "requests"} on:click={() => selectTab("requests")}>Requests</button>
         </div>
     </div>
@@ -92,6 +97,23 @@
                 <p class="empty">No notifications yet.</p>
             {:else}
                 {#each $notifications as notification (notification.id)}
+                    <NotificationItem {notification} unread={toMillis(notification.createdAt) > toMillis($lastRead)} />
+                {/each}
+            {/if}
+        </div>
+    {:else if activeTab === "mentions"}
+        <div class="list">
+            {#if loading}
+                {#each Array(3) as _}
+                    <div class="skeletonRow">
+                        <Skeleton circle width="40px" height="40px" />
+                        <Skeleton width="50%" height="14px" />
+                    </div>
+                {/each}
+            {:else if mentionNotifications.length === 0}
+                <p class="empty">No mentions yet.</p>
+            {:else}
+                {#each mentionNotifications as notification (notification.id)}
                     <NotificationItem {notification} unread={toMillis(notification.createdAt) > toMillis($lastRead)} />
                 {/each}
             {/if}
@@ -149,36 +171,38 @@
         border-inline: 1px solid var(--gainsboro);
     }
 
-    .header {
-        padding: 1rem;
-        border-bottom: 1px solid var(--gainsboro);
+    .stickyHead {
         position: sticky;
         top: 0;
-        background: var(--background-base);
         z-index: 10;
+        background: var(--background-base);
+    }
+
+    .header {
+        padding: 1rem;
     }
 
     .header h2 {
         font-size: 20px;
         font-weight: 800;
-        margin-bottom: 0.8rem;
     }
 
     .tabs {
         display: flex;
         flex-direction: row;
-        gap: 0.4rem;
+        border-bottom: 1px solid var(--gainsboro);
     }
 
     .tabs button {
+        flex: 1;
         cursor: pointer;
-        padding: 0.6rem 1rem;
-        border-radius: 999px;
+        position: relative;
+        padding: 1rem;
         border: none;
         background: none;
         color: var(--text-subdued);
         font-weight: 600;
-        font-size: 14px;
+        font-size: 15px;
         transition: background 0.2s, color 0.2s;
     }
 
@@ -187,8 +211,20 @@
     }
 
     .tabs button.selected {
+        color: var(--text-base);
+        font-weight: 800;
+    }
+
+    .tabs button.selected::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 56px;
+        height: 4px;
+        border-radius: 999px;
         background: var(--essential-announcement);
-        color: #fff;
     }
 
     .list {

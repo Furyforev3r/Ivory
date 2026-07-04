@@ -29,7 +29,8 @@
         post: "material-symbols:campaign-rounded",
         mention: "material-symbols:alternate-email",
         follow_request: "material-symbols:person-add-rounded",
-        follow_accepted: "material-symbols:person-check-rounded"
+        follow_accepted: "material-symbols:person-check-rounded",
+        reply_like: "mdi:heart"
     }
 
     const ICON_COLORS: Record<string, string> = {
@@ -40,7 +41,8 @@
         post: "var(--essential-announcement)",
         mention: "var(--essential-announcement)",
         follow_request: "var(--essential-announcement)",
-        follow_accepted: "var(--essential-announcement)"
+        follow_accepted: "var(--essential-announcement)",
+        reply_like: "var(--essential-like)"
     }
 
     function actionText(type: string) {
@@ -53,6 +55,7 @@
             case "mention": return "mentioned you in a post"
             case "follow_request": return "requested to follow you"
             case "follow_accepted": return "accepted your follow request"
+            case "reply_like": return "liked your reply"
             default: return ""
         }
     }

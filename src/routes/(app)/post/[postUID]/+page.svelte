@@ -16,6 +16,7 @@
 
     let postUID: string
     let post: any = null
+    let postAuthor: any = null
     let notFound = false
     let isPrivate = false
     let loadedFor: string | null = null
@@ -24,6 +25,7 @@
     let repliesLoading = true
     let replyValue = ""
     let posting = false
+    let replyTextareaEl: HTMLTextAreaElement
 
     let userInfo: any
     $: userInfo = $user
@@ -36,6 +38,7 @@
     async function loadPost(uid: string) {
         loadedFor = uid
         post = null
+        postAuthor = null
         notFound = false
         isPrivate = false
         replies = []
@@ -46,7 +49,14 @@
             let response = await axios.get(`/api/getPostByUID?uid=${uid}${viewerParam}`)
 
             if (response.status == 200) {
-                post = response.data.post
+                const fetchedPost = response.data.post
+                try {
+                    const authorResponse = await axios.get(`/api/getSimpleUser?uid=${fetchedPost.userUID}`)
+                    postAuthor = authorResponse.data.user
+                } catch (error) {
+                    console.error(error)
+                }
+                post = fetchedPost
             } else {
                 notFound = true
             }
@@ -80,6 +90,11 @@
 
     function handlePostEdited(event: CustomEvent<{ post: any }>) {
         post = event.detail.post
+    }
+
+    function handleReplyToReply(event: CustomEvent<{ username: string }>) {
+        replyValue = `@${event.detail.username} `
+        replyTextareaEl?.focus()
     }
 
     async function submitReply() {
@@ -117,7 +132,7 @@
     {:else if isPrivate}
         <p class="empty">This post is from a private account. Follow them to see it.</p>
     {:else if post}
-        <Post {post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+        <Post {post} author={postAuthor} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
         <div class="replyComposer">
             {#if userAccount}
                 <img src={userAccount.user.photoURL} alt="Your avatar" class="composerAvatar" />
@@ -127,13 +142,16 @@
             <div class="composerBody">
                 <textarea
                     use:autosize
+                    bind:this={replyTextareaEl}
                     placeholder="Post your reply"
                     maxlength="300"
                     bind:value={replyValue}
                 ></textarea>
-                <button on:click={submitReply} disabled={posting || !replyValue.trim()}>
-                    {posting ? "Replying..." : "Reply"}
-                </button>
+                <div class="composerFooter">
+                    <button on:click={submitReply} disabled={posting || !replyValue.trim()}>
+                        {posting ? "Replying..." : "Reply"}
+                    </button>
+                </div>
             </div>
         </div>
         <div class="repliesList">
@@ -145,7 +163,7 @@
                 <p class="empty">No replies yet. Be the first to reply!</p>
             {:else}
                 {#each replies as reply (reply.id)}
-                    <Reply {reply} />
+                    <Reply {reply} on:reply={handleReplyToReply} />
                 {/each}
             {/if}
         </div>
@@ -241,20 +259,27 @@
         background: none;
         color: var(--text-base);
         font-family: inherit;
-        font-size: 15px;
-        border-bottom: 1px solid var(--gainsboro);
+        font-size: 18px;
         resize: none;
     }
 
+    .composerFooter {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--gainsboro);
+    }
+
     .composerBody button {
-        align-self: flex-end;
         cursor: pointer;
-        padding: 0.6rem 1.2rem;
+        padding: 0.5rem 1.1rem;
         border-radius: 999px;
         border: none;
         background: var(--essential-announcement);
         color: #fff;
         font-weight: 700;
+        font-size: 14px;
         transition: opacity 0.2s;
     }
 

@@ -66,9 +66,7 @@
     {/if}
 
     <ul>
-        <a class="logoLink" href="/" aria-label="Ivory home">
-            <Icon icon="material-symbols:diamond-outline" width="28px" height="28px" />
-        </a>
+        <div class="logoSpacer" aria-hidden="true"></div>
         <li>
             <a href='/' class:selected={isActive('/')}>
                 <Icon icon={isActive('/') ? "material-symbols:home-rounded" : "material-symbols:home-outline-rounded"} width="28px" height="28px" />
@@ -116,26 +114,28 @@
         </button>
 
         <div class="chipWrapper" bind:this={chipWrapperEl}>
-            <a href={userAccount ? `/${userAccount.user.username}` : '#'} class="profileChip">
-                {#if userAccount}
-                    <img
-                        src={userAccount.user.photoURL}
-                        width="40px"
-                        height="40px"
-                        class="chipAvatar"
-                        alt="Your avatar"
-                    />
-                    <span class="chipInfo">
-                        <span class="chipName">{userAccount.user.displayName}</span>
-                        <span class="chipHandle">@{userAccount.user.username}</span>
-                    </span>
-                {:else}
-                    <Skeleton circle width="40px" height="40px" />
-                {/if}
-            </a>
-            <button class="chipMenuButton" on:click={toggleAccountMenu} aria-label="Account menu">
-                <Icon icon="material-symbols:more-horiz" width="20px" height="20px" />
-            </button>
+            <div class="profileChip">
+                <a href={userAccount ? `/${userAccount.user.username}` : '#'} class="profileChipLink">
+                    {#if userAccount}
+                        <img
+                            src={userAccount.user.photoURL}
+                            width="40px"
+                            height="40px"
+                            class="chipAvatar"
+                            alt="Your avatar"
+                        />
+                        <span class="chipInfo">
+                            <span class="chipName">{userAccount.user.displayName}</span>
+                            <span class="chipHandle">@{userAccount.user.username}</span>
+                        </span>
+                    {:else}
+                        <Skeleton circle width="40px" height="40px" />
+                    {/if}
+                </a>
+                <button class="chipMenuButton" on:click={toggleAccountMenu} aria-label="Account menu">
+                    <Icon icon="material-symbols:more-horiz" width="20px" height="20px" />
+                </button>
+            </div>
             {#if accountMenuOpen}
                 <div class="accountMenu" transition:fade={{ duration: 120 }}>
                     <button on:click={logout}>
@@ -241,19 +241,10 @@
         background: var(--background-elevated-base);
     }
 
-    .logoLink {
-        display: grid;
-        place-items: center;
+    .logoSpacer {
         width: 44px;
         height: 44px;
         margin-bottom: 0.4rem;
-        border-radius: 50%;
-        color: var(--essential-announcement);
-        transition: background 0.2s;
-    }
-
-    .logoLink:hover {
-        background: var(--background-highlight);
     }
 
     .tabs ul {
@@ -280,15 +271,24 @@
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 0.6rem;
+        gap: 0.2rem;
         padding: 0.5rem;
         border-radius: 999px;
-        text-decoration: none;
         transition: background 0.2s;
     }
 
     .profileChip:hover {
         background: var(--background-highlight);
+    }
+
+    .profileChipLink {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+        text-decoration: none;
     }
 
     .chipAvatar {
@@ -487,14 +487,14 @@
             display: none;
         }
 
-        .chipWrapper {
+        .profileChip {
             flex-direction: column;
             gap: 0.3rem;
+            padding: 0.4rem;
         }
 
-        .profileChip {
+        .profileChipLink {
             flex: 0 0 auto;
-            padding: 0.4rem;
         }
 
         .chipInfo {

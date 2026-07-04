@@ -13,7 +13,12 @@ export async function GET({ url }) {
     const result = await getPostViewerState(postUID, uid)
 
     if (result.success) {
-      return json({ liked: result.liked, reposted: result.reposted }, { status: 200 })
+      return json({
+        liked: result.liked,
+        reposted: result.reposted,
+        bookmarked: result.bookmarked,
+        pollVotedOption: result.pollVotedOption
+      }, { status: 200 })
     } else {
       return json({ error: result.error }, { status: 500 })
     }

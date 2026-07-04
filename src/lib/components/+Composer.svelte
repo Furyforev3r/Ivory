@@ -15,8 +15,22 @@
 
     const dispatch = createEventDispatcher()
 
+    let textareaEl: HTMLTextAreaElement
+    let emojiWrapEl: HTMLDivElement
+    let audienceWrapEl: HTMLDivElement
+
     function focusIfNeeded(node: HTMLTextAreaElement) {
+        textareaEl = node
         if (autofocus) node.focus()
+    }
+
+    function handleWindowClick(event: MouseEvent) {
+        if (showEmojiPicker && emojiWrapEl && !emojiWrapEl.contains(event.target as Node)) {
+            showEmojiPicker = false
+        }
+        if (showAudienceMenu && audienceWrapEl && !audienceWrapEl.contains(event.target as Node)) {
+            showAudienceMenu = false
+        }
     }
 
     let userInfo: any
@@ -105,6 +119,81 @@
         cropFile = null
     }
 
+    const EMOJIS = [
+        "😀", "😂", "🥹", "😍", "😎", "🤔", "😴", "😭", "😡", "🥳",
+        "👍", "👎", "👏", "🙌", "🙏", "💪", "🤝", "✌️", "🤞", "👀",
+        "❤️", "🔥", "✨", "🎉", "💯", "😢", "😅", "🤯", "🥰", "😏",
+        "🚀", "⭐", "🌟", "☀️", "🌙", "⚡", "🎶", "📸", "🐶", "🐱"
+    ]
+
+    let showEmojiPicker = false
+
+    function toggleEmojiPicker() {
+        showEmojiPicker = !showEmojiPicker
+    }
+
+    function insertEmoji(emoji: string) {
+        const start = textareaEl?.selectionStart ?? postValue.length
+        const end = textareaEl?.selectionEnd ?? postValue.length
+        postValue = postValue.slice(0, start) + emoji + postValue.slice(end)
+        showEmojiPicker = false
+        requestAnimationFrame(() => {
+            if (!textareaEl) return
+            const cursor = start + emoji.length
+            textareaEl.focus()
+            textareaEl.setSelectionRange(cursor, cursor)
+        })
+    }
+
+    let showPollComposer = false
+    let pollOptions = ["", ""]
+    let pollDurationHours = 24
+
+    const POLL_DURATIONS = [
+        { label: "1 day", hours: 24 },
+        { label: "3 days", hours: 72 },
+        { label: "7 days", hours: 168 },
+    ]
+
+    function togglePoll() {
+        if (mediaPreviewURL) return
+        showPollComposer = !showPollComposer
+    }
+
+    function addPollOption() {
+        if (pollOptions.length < 4) pollOptions = [...pollOptions, ""]
+    }
+
+    function removePollOption(index: number) {
+        if (pollOptions.length > 2) pollOptions = pollOptions.filter((_, i) => i !== index)
+    }
+
+    function cancelPoll() {
+        showPollComposer = false
+        pollOptions = ["", ""]
+        pollDurationHours = 24
+    }
+
+    const AUDIENCE_OPTIONS = [
+        { value: "everyone", label: "Everyone", icon: "material-symbols:public" },
+        { value: "following", label: "People you follow", icon: "material-symbols:group-outline-rounded" },
+        { value: "mentioned", label: "Only people you mention", icon: "material-symbols:alternate-email" },
+    ] as const
+
+    let replyAudience: "everyone" | "following" | "mentioned" = "everyone"
+    let showAudienceMenu = false
+
+    function toggleAudienceMenu() {
+        showAudienceMenu = !showAudienceMenu
+    }
+
+    function selectAudience(value: "everyone" | "following" | "mentioned") {
+        replyAudience = value
+        showAudienceMenu = false
+    }
+
+    $: currentAudience = AUDIENCE_OPTIONS.find(option => option.value === replyAudience)!
+
     export async function validateAndPost() {
         const validationResult = postSchema.safeParse({ postValue })
 
@@ -112,6 +201,8 @@
             errorMessage = validationResult.error.errors[0]?.message
         } else if (uploadingMedia) {
             errorMessage = "Wait for the media upload to finish"
+        } else if (showPollComposer && pollOptions.filter(option => option.trim()).length < 2) {
+            errorMessage = "A poll needs at least 2 options"
         } else {
             posting = true
             try {
@@ -120,7 +211,12 @@
                     'content': postValue,
                     'image': !!uploadedMediaURL,
                     'imageURL': uploadedMediaURL,
-                    'mediaType': mediaType
+                    'mediaType': mediaType,
+                    'replyAudience': replyAudience,
+                    'poll': showPollComposer ? {
+                        options: pollOptions.map(option => option.trim()).filter(Boolean),
+                        durationHours: pollDurationHours
+                    } : null
                 })
 
                 if (response.status == 200 || response.status == 201) {
@@ -128,6 +224,8 @@
                     errorMessage = ''
                     postValue = ''
                     removeMedia()
+                    cancelPoll()
+                    replyAudience = "everyone"
                     dispatch("posted", { post: response.data.post })
                 } else {
                     toast.error(response.data.error)
@@ -140,6 +238,8 @@
         }
     }
 </script>
+
+<svelte:window on:click={handleWindowClick} />
 
 <input
     type="file"
@@ -180,7 +280,7 @@
                 use:autosize
                 use:focusIfNeeded
                 maxlength="300"
-                placeholder="What's happening?"
+                placeholder="Qual a bang perfeitinha de hoje?"
                 bind:value={postValue}
             ></textarea>
 
@@ -202,10 +302,82 @@
                 </div>
             {/if}
 
+            {#if showPollComposer}
+                <div class="pollComposer">
+                    {#each pollOptions as option, index}
+                        <div class="pollOptionRow">
+                            <input
+                                type="text"
+                                placeholder="Option {index + 1}"
+                                maxlength="25"
+                                bind:value={pollOptions[index]}
+                            />
+                            {#if pollOptions.length > 2}
+                                <button type="button" on:click={() => removePollOption(index)} aria-label="Remove option">
+                                    <Icon icon="material-symbols:close-rounded" width="16" height="16" />
+                                </button>
+                            {/if}
+                        </div>
+                    {/each}
+                    <div class="pollFooter">
+                        {#if pollOptions.length < 4}
+                            <button type="button" class="addOption" on:click={addPollOption}>+ Add option</button>
+                        {/if}
+                        <select bind:value={pollDurationHours}>
+                            {#each POLL_DURATIONS as duration}
+                                <option value={duration.hours}>{duration.label}</option>
+                            {/each}
+                        </select>
+                        <button type="button" class="removePoll" on:click={cancelPoll} aria-label="Remove poll">
+                            <Icon icon="material-symbols:delete-outline-rounded" width="16" height="16" />
+                        </button>
+                    </div>
+                </div>
+            {/if}
+
+            <div class="audienceRow">
+                <div class="audienceWrap" bind:this={audienceWrapEl}>
+                    <button type="button" class="audiencePill" on:click={toggleAudienceMenu}>
+                        <Icon icon={currentAudience.icon} width="14" height="14" />
+                        {currentAudience.label} can reply
+                    </button>
+                    {#if showAudienceMenu}
+                        <div class="audienceMenu" role="menu">
+                            {#each AUDIENCE_OPTIONS as option}
+                                <button type="button" class:selected={option.value === replyAudience} on:click={() => selectAudience(option.value)}>
+                                    <Icon icon={option.icon} width="18" height="18" />
+                                    {option.label}
+                                    {#if option.value === replyAudience}
+                                        <Icon icon="material-symbols:check-rounded" width="16" height="16" class="checkIcon" />
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            </div>
+
             <div class="footer">
-                <button type="button" class="addImage" on:click={openMediaPicker} disabled={!!mediaPreviewURL}>
-                    <Icon icon="material-symbols:image-outline" width="18" height="18" />
-                </button>
+                <div class="footerLeft">
+                    <button type="button" class="addImage" on:click={openMediaPicker} disabled={!!mediaPreviewURL || showPollComposer}>
+                        <Icon icon="material-symbols:image-outline" width="18" height="18" />
+                    </button>
+                    <button type="button" class="addImage" on:click={togglePoll} disabled={!!mediaPreviewURL} aria-label="Add poll">
+                        <Icon icon="material-symbols:poll-outline" width="18" height="18" />
+                    </button>
+                    <div class="emojiWrap" bind:this={emojiWrapEl}>
+                        <button type="button" class="addImage" on:click={toggleEmojiPicker} aria-label="Add emoji">
+                            <Icon icon="material-symbols:mood-outline" width="18" height="18" />
+                        </button>
+                        {#if showEmojiPicker}
+                            <div class="emojiPicker">
+                                {#each EMOJIS as emoji}
+                                    <button type="button" on:click={() => insertEmoji(emoji)}>{emoji}</button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                </div>
                 {#if errorMessage}
                     <p class="error">{errorMessage}</p>
                 {/if}
@@ -252,8 +424,8 @@
 
     textarea {
         width: 100%;
-        min-height: 3rem;
-        padding: 0.6rem 0;
+        min-height: 1.6rem;
+        padding: 0.4rem 0;
         background: transparent;
         border: none;
         outline: none;
@@ -301,6 +473,156 @@
         color: #fff;
     }
 
+    .pollComposer {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.8rem;
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+    }
+
+    .pollOptionRow {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .pollOptionRow input {
+        flex: 1;
+        padding: 0.6rem 0.8rem;
+        background: var(--background-elevated-highlight);
+        border: none;
+        outline: none;
+        border-radius: 0.6rem;
+        color: var(--text-base);
+        font-size: 14px;
+    }
+
+    .pollOptionRow button {
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-subdued);
+    }
+
+    .pollOptionRow button:hover {
+        background: var(--background-highlight);
+    }
+
+    .pollFooter {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .addOption {
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: var(--essential-announcement);
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .pollFooter select {
+        margin-left: auto;
+        padding: 0.4rem 0.6rem;
+        border-radius: 0.6rem;
+        border: 1px solid var(--gainsboro);
+        background: var(--background-base);
+        color: var(--text-base);
+        font-size: 13px;
+    }
+
+    .removePoll {
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--essential-negative);
+    }
+
+    .removePoll:hover {
+        background: rgba(244, 33, 46, 0.08);
+    }
+
+    .audienceRow {
+        display: flex;
+    }
+
+    .audienceWrap {
+        position: relative;
+    }
+
+    .audiencePill {
+        cursor: pointer;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 999px;
+        border: none;
+        background: color-mix(in srgb, var(--essential-announcement) 12%, transparent);
+        color: var(--essential-announcement);
+        font-weight: 600;
+        font-size: 12px;
+    }
+
+    .audienceMenu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 0.4rem;
+        min-width: 240px;
+        background: var(--background-base);
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        overflow: hidden;
+        z-index: 50;
+    }
+
+    .audienceMenu button {
+        cursor: pointer;
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.8rem 1rem;
+        border: none;
+        background: none;
+        color: var(--text-base);
+        font-size: 14px;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .audienceMenu button:hover {
+        background: var(--background-highlight);
+    }
+
+    .audienceMenu button.selected {
+        color: var(--essential-announcement);
+    }
+
+    .audienceMenu :global(.checkIcon) {
+        margin-left: auto;
+    }
+
     .footer {
         display: flex;
         flex-direction: row;
@@ -309,6 +631,13 @@
         gap: 0.8rem;
         padding-top: 0.6rem;
         border-top: 1px solid var(--gainsboro);
+    }
+
+    .footerLeft {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.2rem;
     }
 
     .footerRight {
@@ -338,6 +667,46 @@
     .addImage:disabled {
         opacity: 0.4;
         cursor: default;
+    }
+
+    .emojiWrap {
+        position: relative;
+    }
+
+    .emojiPicker {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 0.4rem;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 0.2rem;
+        width: 260px;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0.6rem;
+        background: var(--background-base);
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        z-index: 50;
+    }
+
+    .emojiPicker button {
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 0.4rem;
+        border: none;
+        background: transparent;
+        font-size: 18px;
+        transition: background 0.2s;
+    }
+
+    .emojiPicker button:hover {
+        background: var(--background-highlight);
     }
 
     .error {

@@ -42,6 +42,12 @@
 
     $: userAccount = $account
     $: isAdmin = !!userAccount?.user?.admin
+    $: if (canEdit && userProfile && userAccount && userProfile.user.pinnedPostUID !== userAccount.user.pinnedPostUID) {
+        userProfile.user.pinnedPostUID = userAccount.user.pinnedPostUID
+    }
+    $: pinnedPost = userProfile?.user?.pinnedPostUID
+        ? userPosts?.posts?.posts?.find((post: any) => post.id === userProfile.user.pinnedPostUID)
+        : null
 
     function openUserList(mode: "followers" | "following") {
         userListMode = mode
@@ -511,8 +517,13 @@
                         <PostSkeleton />
                     {/each}
                 {:else}
+                    {#if pinnedPost}
+                        <Post post={pinnedPost} pinned={true} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                    {/if}
                     {#each userPosts.posts.posts as post (post.id)}
-                        <Post post={post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                        {#if post.id !== userProfile.user.pinnedPostUID}
+                            <Post post={post} on:deleted={handlePostDeleted} on:edited={handlePostEdited} />
+                        {/if}
                     {/each}
                 {/if}
             </div>

@@ -277,13 +277,25 @@ export async function newPost(post, token) {
       return { success: false, message: 'You do not have permission to make this post' }
     }
 
+    const { poll: rawPoll, replyAudience, ...postFields } = post
+
+    let poll = null
+    if (rawPoll && Array.isArray(rawPoll.options) && rawPoll.options.length >= 2) {
+      poll = {
+        options: rawPoll.options.map(text => ({ text, votes: 0 })),
+        expiresAt: Timestamp.fromMillis(Date.now() + (rawPoll.durationHours || 24) * 3600 * 1000)
+      }
+    }
+
     const newPost = await db.collection('Posts').add({
       likesCount: 0,
       repliesCount: 0,
       repostsCount: 0,
       repostOf: null,
+      replyAudience: replyAudience || 'everyone',
+      poll,
       'uploadDate': fieldValue.serverTimestamp(),
-      ...post
+      ...postFields
     })
 
     const subscribersSnapshot = await db.collection('PostNotifSubs')
@@ -385,6 +397,37 @@ export async function deletePost(postUID, uid, token) {
   }
 }
 
+export async function togglePinPost(uid, postUID, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const postDoc = await db.collection('Posts').doc(postUID).get()
+
+    if (!postDoc.exists || postDoc.data()!.userUID !== uid) {
+      return { success: false, message: 'You do not have permission to pin this post' }
+    }
+
+    const userRef = db.collection('Users').doc(uid)
+    const userDoc = await userRef.get()
+    const currentlyPinned = userDoc.data()?.pinnedPostUID === postUID
+
+    await userRef.update({ pinnedPostUID: currentlyPinned ? null : postUID })
+
+    return { success: true, pinnedPostUID: currentlyPinned ? null : postUID }
+  } catch (error) {
+    console.error('Error toggling pinned post:', error)
+    return { success: false, error: 'Failed to update pinned post' }
+  }
+}
+
 export async function toggleLike(postUID, uid, token) {
   const tokenVerification = await verifyToken(token)
 
@@ -425,25 +468,83 @@ export async function toggleLike(postUID, uid, token) {
 
 export async function getPostViewerState(postUID, uid) {
   if (!uid) {
-    return { success: true, liked: false, reposted: false, bookmarked: false }
+    return { success: true, liked: false, reposted: false, bookmarked: false, pollVotedOption: null }
   }
 
   try {
-    const [likeDoc, repostSnapshot, bookmarkDoc] = await Promise.all([
+    const [likeDoc, repostSnapshot, bookmarkDoc, pollVoteDoc] = await Promise.all([
       db.collection('Likes').doc(`${postUID}_${uid}`).get(),
       db.collection('Posts').where('userUID', '==', uid).where('repostOf', '==', postUID).limit(1).get(),
-      db.collection('Bookmarks').doc(`${uid}_${postUID}`).get()
+      db.collection('Bookmarks').doc(`${uid}_${postUID}`).get(),
+      db.collection('PollVotes').doc(`${postUID}_${uid}`).get()
     ])
 
     return {
       success: true,
       liked: likeDoc.exists,
       reposted: !repostSnapshot.empty,
-      bookmarked: bookmarkDoc.exists
+      bookmarked: bookmarkDoc.exists,
+      pollVotedOption: pollVoteDoc.exists ? pollVoteDoc.data()!.optionIndex : null
     }
   } catch (error) {
     console.error('Error fetching post viewer state:', error)
     return { success: false, error: 'Failed to fetch post state' }
+  }
+}
+
+export async function votePoll(postUID, uid, optionIndex, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const voteRef = db.collection('PollVotes').doc(`${postUID}_${uid}`)
+    const postRef = db.collection('Posts').doc(postUID)
+
+    const options = await db.runTransaction(async (tx) => {
+      const [voteDoc, postDoc] = await Promise.all([tx.get(voteRef), tx.get(postRef)])
+
+      if (voteDoc.exists) {
+        throw new Error('ALREADY_VOTED')
+      }
+
+      if (!postDoc.exists || !postDoc.data()!.poll) {
+        throw new Error('NO_POLL')
+      }
+
+      const poll = postDoc.data()!.poll
+
+      if (poll.expiresAt && poll.expiresAt.toMillis() < Date.now()) {
+        throw new Error('POLL_EXPIRED')
+      }
+
+      if (optionIndex < 0 || optionIndex >= poll.options.length) {
+        throw new Error('INVALID_OPTION')
+      }
+
+      const updatedOptions = poll.options.map((option, index) =>
+        index === optionIndex ? { ...option, votes: (option.votes || 0) + 1 } : option
+      )
+
+      tx.update(postRef, { 'poll.options': updatedOptions })
+      tx.set(voteRef, { postUID, userUID: uid, optionIndex, createdAt: fieldValue.serverTimestamp() })
+
+      return updatedOptions
+    })
+
+    return { success: true, options }
+  } catch (error: any) {
+    if (error.message === 'ALREADY_VOTED') return { success: false, message: 'You already voted on this poll' }
+    if (error.message === 'POLL_EXPIRED') return { success: false, message: 'This poll has ended' }
+    if (error.message === 'NO_POLL') return { success: false, message: 'This post has no poll' }
+    console.error('Error voting on poll:', error)
+    return { success: false, error: 'Failed to vote' }
   }
 }
 
@@ -512,6 +613,29 @@ export async function getBookmarkedPosts(uid, token, limit = 30) {
   }
 }
 
+async function canReplyToPost(postData, uid) {
+  const authorUID = postData.userUID
+  if (uid === authorUID) return true
+
+  const audience = postData.replyAudience || 'everyone'
+  if (audience === 'everyone') return true
+
+  if (audience === 'following') {
+    const followDoc = await db.collection('Follows').doc(`${authorUID}_${uid}`).get()
+    return followDoc.exists
+  }
+
+  if (audience === 'mentioned') {
+    const mentionedUsernames = (postData.content?.match(/@(\w+)/g) || []).map(match => match.slice(1))
+    if (mentionedUsernames.length === 0) return false
+
+    const replierDoc = await db.collection('Users').doc(uid).get()
+    return replierDoc.exists && mentionedUsernames.includes(replierDoc.data()!.username)
+  }
+
+  return true
+}
+
 export async function newReply(postUID, content, uid, token) {
   const tokenVerification = await verifyToken(token)
 
@@ -531,10 +655,15 @@ export async function newReply(postUID, content, uid, token) {
       return { success: false, message: 'Post not found' }
     }
 
+    if (!(await canReplyToPost(postDoc.data(), uid))) {
+      return { success: false, message: 'You are not allowed to reply to this post' }
+    }
+
     const reply = await db.collection('Replies').add({
       postUID,
       userUID: uid,
       content,
+      likesCount: 0,
       uploadDate: fieldValue.serverTimestamp()
     })
 
@@ -546,6 +675,58 @@ export async function newReply(postUID, content, uid, token) {
   } catch (error) {
     console.error('Error creating reply:', error)
     return { success: false, error: 'Failed to reply' }
+  }
+}
+
+export async function toggleReplyLike(replyUID, uid, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const replyRef = db.collection('Replies').doc(replyUID)
+    const replyDoc = await replyRef.get()
+
+    if (!replyDoc.exists) {
+      return { success: false, message: 'Reply not found' }
+    }
+
+    const likeRef = db.collection('ReplyLikes').doc(`${replyUID}_${uid}`)
+    const likeDoc = await likeRef.get()
+
+    if (likeDoc.exists) {
+      await likeRef.delete()
+      await replyRef.update({ likesCount: fieldValue.increment(-1) })
+      return { success: true, liked: false }
+    } else {
+      await likeRef.set({ replyUID, userUID: uid, createdAt: fieldValue.serverTimestamp() })
+      await replyRef.update({ likesCount: fieldValue.increment(1) })
+      await createNotification(replyDoc.data()!.userUID, 'reply_like', uid, replyDoc.data()!.postUID)
+      return { success: true, liked: true }
+    }
+  } catch (error) {
+    console.error('Error toggling reply like:', error)
+    return { success: false, error: 'Failed to toggle reply like' }
+  }
+}
+
+export async function getReplyViewerState(replyUID, uid) {
+  if (!uid) {
+    return { success: true, liked: false }
+  }
+
+  try {
+    const likeDoc = await db.collection('ReplyLikes').doc(`${replyUID}_${uid}`).get()
+    return { success: true, liked: likeDoc.exists }
+  } catch (error) {
+    console.error('Error fetching reply viewer state:', error)
+    return { success: false, error: 'Failed to fetch reply state' }
   }
 }
 
