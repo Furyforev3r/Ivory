@@ -11,6 +11,7 @@
     import { goto } from "$app/navigation"
     import PostSkeleton from "./+PostSkeleton.svelte"
     import QuoteModal from "./+QuoteModal.svelte"
+    import UserBadges from "./+UserBadges.svelte"
     import { shareLink } from "$lib/client/utils/share"
     import { tokenizeMentions } from "$lib/client/utils/mentions"
 
@@ -328,6 +329,7 @@
             <div class="postContentContainer">
                 <div class="postInfo">
                     <p class="displayName">{author.displayName}</p>
+                    <UserBadges verified={author.verified} admin={author.admin} size="15" />
                     <p class="username">@{author.username}</p>
                     <span class="username">·</span>
                     <p class="username">{formatTimestamp(post.uploadDate)}</p>
@@ -382,6 +384,7 @@
                                 <div class="embeddedHead">
                                     <img src={originalAuthor.photoURL} alt={originalAuthor.displayName} width="20" height="20" />
                                     <p class="displayName">{originalAuthor.displayName}</p>
+                                    <UserBadges verified={originalAuthor.verified} admin={originalAuthor.admin} size="13" />
                                     <p class="username">@{originalAuthor.username}</p>
                                 </div>
                                 <p class="content">{#each tokenizeMentions(originalPost.content) as token}{#if token.type === "mention"}<span class="mention" role="link" tabindex="0" on:click={(e) => goToMention(e, token.value)} on:keydown={(e) => { if (e.key === "Enter") goToMention(e, token.value) }}>@{token.value}</span>{:else}{token.value}{/if}{/each}</p>

@@ -2,7 +2,7 @@
     import { goto } from "$app/navigation"
     import { browser } from "$app/environment"
     import { user } from "$lib/client/hooks/loginState"
-    import { refreshAccount } from "$lib/client/hooks/accountState"
+    import { account, refreshAccount } from "$lib/client/hooks/accountState"
     import Icon from "@iconify/svelte"
     import { page } from "$app/stores"
     import axios from "axios"
@@ -13,6 +13,7 @@
     import Skeleton from "$lib/components/+Skeleton.svelte"
     import ImageCropModal from "$lib/components/+ImageCropModal.svelte"
     import UserListModal from "$lib/components/+UserListModal.svelte"
+    import UserBadges from "$lib/components/+UserBadges.svelte"
     import { fade, scale } from "svelte/transition"
     import { shareLink } from "$lib/client/utils/share"
 
@@ -32,6 +33,13 @@
     let postNotifSubscribed = false
     let postNotifBusy = false
     let userListMode: "followers" | "following" | null = null
+    let userAccount: any
+    let adminEditing = false
+    let adminFormData: any = null
+    let adminSaving = false
+
+    $: userAccount = $account
+    $: isAdmin = !!userAccount?.user?.admin
 
     function openUserList(mode: "followers" | "following") {
         userListMode = mode
@@ -39,6 +47,40 @@
 
     function closeUserList() {
         userListMode = null
+    }
+
+    function openAdminEdit() {
+        adminFormData = {
+            displayName: userProfile.user.displayName,
+            description: userProfile.user.description ?? "",
+            verified: !!userProfile.user.verified,
+            admin: !!userProfile.user.admin
+        }
+        adminEditing = true
+    }
+
+    function closeAdminEdit() {
+        adminEditing = false
+        adminFormData = null
+    }
+
+    async function saveAdminEdit() {
+        if (adminSaving) return
+
+        adminSaving = true
+        try {
+            await axios.post(`/api/adminEditUserProfile?token=${userInfo.accessToken}&adminUID=${userInfo.uid}`, {
+                targetUID: userProfile.user.uid,
+                ...adminFormData
+            })
+            userProfile.user = { ...userProfile.user, ...adminFormData }
+            toast.success("User updated")
+            closeAdminEdit()
+        } catch (error) {
+            toast.error("Could not update user")
+        } finally {
+            adminSaving = false
+        }
     }
 
     let avatarInput: HTMLInputElement
@@ -420,13 +462,22 @@
                             {following ? (hoveringFollow ? "Unfollow" : "Following") : "Follow"}
                         </button>
                     {/if}
+                    {#if isAdmin && !canEdit}
+                        <button on:click={openAdminEdit} aria-label="Admin edit user">
+                            <Icon icon="material-symbols:shield-rounded" width="18" height="18" />
+                            Admin
+                        </button>
+                    {/if}
                     <button on:click={handleShareProfile} aria-label="Share profile">
                         <Icon icon="material-symbols:ios-share" width="18" height="18" />
                         Share
                     </button>
                 </div>
             </div>
-            <h2>{userProfile.user.displayName}</h2>
+            <h2>
+                {userProfile.user.displayName}
+                <UserBadges verified={userProfile.user.verified} admin={userProfile.user.admin} size="18" />
+            </h2>
             <p class="username">@{userProfile.user.username}</p>
             <div class="profileInfo">
                 <button type="button" class="statButton" on:click={() => openUserList("following")}>
@@ -466,6 +517,36 @@
         requesterUID={userInfo && userInfo !== "Loading..." ? userInfo.uid : null}
         on:close={closeUserList}
     />
+{/if}
+
+{#if adminEditing && adminFormData}
+    <div class="editProfile" transition:fade={{ duration: 150 }} on:click|self={closeAdminEdit} role="presentation">
+        <form class="form" on:submit|preventDefault={saveAdminEdit} transition:scale={{ duration: 150, start: 0.96 }}>
+            <div class="formTitle">
+                <h1>Admin: edit user</h1>
+                <button type="button" on:click={closeAdminEdit} aria-label="Close">
+                    <Icon icon="charm:cross" width="26" height="26" />
+                </button>
+            </div>
+
+            <label for="adminDisplayName">Display name</label>
+            <input id="adminDisplayName" type="text" bind:value={adminFormData.displayName} maxlength="50" />
+
+            <label for="adminDescription">Bio</label>
+            <textarea id="adminDescription" bind:value={adminFormData.description} maxlength="200"></textarea>
+
+            <label class="checkboxRow">
+                <input type="checkbox" bind:checked={adminFormData.verified} />
+                Verified account
+            </label>
+            <label class="checkboxRow">
+                <input type="checkbox" bind:checked={adminFormData.admin} />
+                Admin account
+            </label>
+
+            <input class="submit" type="submit" value={adminSaving ? "Saving..." : "Save"} disabled={adminSaving} />
+        </form>
+    </div>
 {/if}
 
 <style>
@@ -633,6 +714,15 @@
         margin-top: 0.3rem;
     }
 
+    .form label.checkboxRow {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-base);
+        cursor: pointer;
+    }
+
     .error {
         color: var(--essential-negative);
         font-size: 0.875rem;
@@ -753,6 +843,10 @@
     }
 
     .profile h2 {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.3rem;
         font-size: 20px;
         font-weight: 800;
     }

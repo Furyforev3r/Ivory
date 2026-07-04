@@ -5,6 +5,7 @@
     import { ptBR } from "date-fns/locale"
     import { goto } from "$app/navigation"
     import Skeleton from "./+Skeleton.svelte"
+    import UserBadges from "./+UserBadges.svelte"
     import { tokenizeMentions } from "$lib/client/utils/mentions"
 
     export let reply: any
@@ -46,6 +47,7 @@
         <div class="replyContent">
             <div class="replyInfo">
                 <p class="displayName">{author.displayName}</p>
+                <UserBadges verified={author.verified} admin={author.admin} size="14" />
                 <p class="username">@{author.username}</p>
                 <span class="username">·</span>
                 <p class="username">{formatTimestamp(reply.uploadDate)}</p>

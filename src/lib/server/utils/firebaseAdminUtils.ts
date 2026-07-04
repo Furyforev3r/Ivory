@@ -850,6 +850,46 @@ export async function editUserProfile(uid, updatedUserData, token) {
   }
 }
 
+const ADMIN_EDITABLE_FIELDS = ['displayName', 'description', 'verified', 'admin']
+
+export async function adminEditUserProfile(adminUID, targetUID, updatedUserData, token) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== adminUID) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const adminDoc = await db.collection('Users').doc(adminUID).get()
+
+    if (!adminDoc.exists || !adminDoc.data()!.admin) {
+      return { success: false, message: 'You do not have permission to do this' }
+    }
+
+    const targetRef = db.collection('Users').doc(targetUID)
+    const targetDoc = await targetRef.get()
+
+    if (!targetDoc.exists) {
+      return { success: false, message: 'User not found' }
+    }
+
+    const updatePayload: Record<string, any> = {}
+    for (const field of ADMIN_EDITABLE_FIELDS) {
+      if (field in updatedUserData) updatePayload[field] = updatedUserData[field]
+    }
+
+    await targetRef.update(updatePayload)
+    return { success: true, message: 'User updated successfully' }
+  } catch (error) {
+    console.error('Error performing admin edit:', error)
+    return { success: false, error: 'Failed to update user' }
+  }
+}
+
 export async function search(query, limit = 10) {
   try {
     const usersByUsernameSnapshot = await db.collection('Users')

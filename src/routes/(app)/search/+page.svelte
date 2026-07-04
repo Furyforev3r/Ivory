@@ -2,6 +2,7 @@
     import { onMount } from "svelte"
     import Icon from "@iconify/svelte"
     import Post from "$lib/components/+Post.svelte"
+    import UserBadges from "$lib/components/+UserBadges.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import axios from "axios"
     import { page } from "$app/stores"
@@ -183,6 +184,7 @@
                             <div class="userInfoContainer">
                                 <div class="userInfo">
                                     <p class="displayName">{result.displayName}</p>
+                                    <UserBadges verified={result.verified} admin={result.admin} size="14" />
                                     <p class="username">@{result.username}</p>
                                 </div>
                                 {#if userInfo && result.uid !== userInfo.uid}

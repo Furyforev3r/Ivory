@@ -5,6 +5,7 @@
     import { formatDistanceToNow } from "date-fns"
     import { ptBR } from "date-fns/locale"
     import Skeleton from "./+Skeleton.svelte"
+    import UserBadges from "./+UserBadges.svelte"
 
     export let notification: any
     export let unread = false
@@ -75,6 +76,7 @@
         <div class="notificationBody">
             <p class="text">
                 <span class="displayName">{actor.displayName}</span>
+                <UserBadges verified={actor.verified} admin={actor.admin} size="13" />
                 {actionText(notification.type)}
             </p>
             <p class="timestamp">{formatTimestamp(notification.createdAt)}</p>

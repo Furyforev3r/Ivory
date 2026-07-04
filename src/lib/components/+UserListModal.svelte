@@ -4,6 +4,7 @@
     import Icon from "@iconify/svelte"
     import { fade, scale } from "svelte/transition"
     import Skeleton from "./+Skeleton.svelte"
+    import UserBadges from "./+UserBadges.svelte"
 
     export let title: string
     export let targetUID: string
@@ -61,7 +62,10 @@
                     <a class="row" href={`/${listedUser.username}`} on:click={close}>
                         <img class="avatar" src={listedUser.photoURL} alt={listedUser.displayName} width="44" height="44" loading="lazy" />
                         <div class="info">
-                            <p class="displayName">{listedUser.displayName}</p>
+                            <p class="displayName">
+                                {listedUser.displayName}
+                                <UserBadges verified={listedUser.verified} admin={listedUser.admin} size="13" />
+                            </p>
                             <p class="username">@{listedUser.username}</p>
                         </div>
                     </a>
