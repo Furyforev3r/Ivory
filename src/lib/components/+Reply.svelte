@@ -3,9 +3,17 @@
     import axios from "axios"
     import { formatDistanceToNow } from "date-fns"
     import { ptBR } from "date-fns/locale"
+    import { goto } from "$app/navigation"
     import Skeleton from "./+Skeleton.svelte"
+    import { tokenizeMentions } from "$lib/client/utils/mentions"
 
     export let reply: any
+
+    function goToMention(event: Event, username: string) {
+        event.preventDefault()
+        event.stopPropagation()
+        goto(`/${username}`)
+    }
 
     let author: any = null
 
@@ -42,7 +50,7 @@
                 <span class="username">·</span>
                 <p class="username">{formatTimestamp(reply.uploadDate)}</p>
             </div>
-            <p class="content">{reply.content}</p>
+            <p class="content">{#each tokenizeMentions(reply.content) as token}{#if token.type === "mention"}<span class="mention" role="link" tabindex="0" on:click={(e) => goToMention(e, token.value)} on:keydown={(e) => { if (e.key === "Enter") goToMention(e, token.value) }}>@{token.value}</span>{:else}{token.value}{/if}{/each}</p>
         </div>
     {/if}
 </div>
@@ -95,6 +103,15 @@
     .content {
         word-break: break-word;
         font-size: 15px;
+    }
+
+    .mention {
+        cursor: pointer;
+        color: var(--essential-announcement);
+    }
+
+    .mention:hover {
+        text-decoration: underline;
     }
 
     .lines {

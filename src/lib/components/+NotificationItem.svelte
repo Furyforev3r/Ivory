@@ -25,7 +25,8 @@
         like: "mdi:heart",
         reply: "bx:comment",
         repost: "mdi:repost",
-        post: "material-symbols:campaign-rounded"
+        post: "material-symbols:campaign-rounded",
+        mention: "material-symbols:alternate-email"
     }
 
     const ICON_COLORS: Record<string, string> = {
@@ -33,7 +34,8 @@
         like: "var(--essential-like)",
         reply: "var(--essential-announcement)",
         repost: "var(--essential-repost)",
-        post: "var(--essential-announcement)"
+        post: "var(--essential-announcement)",
+        mention: "var(--essential-announcement)"
     }
 
     function actionText(type: string) {
@@ -43,6 +45,7 @@
             case "reply": return "replied to your post"
             case "repost": return "reposted your post"
             case "post": return "posted something new"
+            case "mention": return "mentioned you in a post"
             default: return ""
         }
     }

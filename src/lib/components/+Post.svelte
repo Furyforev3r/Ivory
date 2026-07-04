@@ -8,9 +8,17 @@
     import { user } from "$lib/client/hooks/loginState"
     import toast from "svelte-french-toast"
     import { fade, scale } from "svelte/transition"
+    import { goto } from "$app/navigation"
     import PostSkeleton from "./+PostSkeleton.svelte"
     import QuoteModal from "./+QuoteModal.svelte"
     import { shareLink } from "$lib/client/utils/share"
+    import { tokenizeMentions } from "$lib/client/utils/mentions"
+
+    function goToMention(event: Event, username: string) {
+        event.preventDefault()
+        event.stopPropagation()
+        goto(`/${username}`)
+    }
 
     export let post: any
     export let compact = false
@@ -359,7 +367,7 @@
                             </div>
                         </div>
                     {:else if post.content}
-                        <p class="content">{post.content}</p>
+                        <p class="content">{#each tokenizeMentions(post.content) as token}{#if token.type === "mention"}<span class="mention" role="link" tabindex="0" on:click={(e) => goToMention(e, token.value)} on:keydown={(e) => { if (e.key === "Enter") goToMention(e, token.value) }}>@{token.value}</span>{:else}{token.value}{/if}{/each}</p>
                     {/if}
                     {#if post.image && !mediaError && post.mediaType === "video"}
                         <div class="postVideoWrap" on:click|stopPropagation role="presentation">
@@ -376,7 +384,7 @@
                                     <p class="displayName">{originalAuthor.displayName}</p>
                                     <p class="username">@{originalAuthor.username}</p>
                                 </div>
-                                <p class="content">{originalPost.content}</p>
+                                <p class="content">{#each tokenizeMentions(originalPost.content) as token}{#if token.type === "mention"}<span class="mention" role="link" tabindex="0" on:click={(e) => goToMention(e, token.value)} on:keydown={(e) => { if (e.key === "Enter") goToMention(e, token.value) }}>@{token.value}</span>{:else}{token.value}{/if}{/each}</p>
                                 {#if originalPost.image && !originalMediaError && originalPost.mediaType === "video"}
                                     <div class="postVideoWrap" on:click|stopPropagation role="presentation">
                                         <video class="postVideo" src={originalPost.imageURL} controls preload="metadata" on:error={handleOriginalMediaError}></video>
@@ -742,6 +750,15 @@
 
     .content {
         word-break: break-word;
+    }
+
+    .mention {
+        cursor: pointer;
+        color: var(--essential-announcement);
+    }
+
+    .mention:hover {
+        text-decoration: underline;
     }
 
     .postImage {

@@ -26,6 +26,19 @@ async function createNotification(recipientUID, type, actorUID, postUID = null) 
   }
 }
 
+async function notifyMentions(content, actorUID, postUID) {
+  if (!content) return
+
+  const usernames = [...new Set((content.match(/@(\w+)/g) || []).map(match => match.slice(1)))]
+
+  await Promise.all(usernames.map(async username => {
+    const result = await getUserByUsername(username)
+    if (result.success) {
+      await createNotification(result.user.uid, 'mention', actorUID, postUID)
+    }
+  }))
+}
+
 const EXTENSION_BY_TYPE = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -252,6 +265,8 @@ export async function newPost(post, token) {
       )
     )
 
+    await notifyMentions(post.content, post.userUID, newPost.id)
+
     const newPostDoc = await newPost.get()
 
     return { success: true, post: { id: newPost.id, ...newPostDoc.data() } }
@@ -427,6 +442,7 @@ export async function newReply(postUID, content, uid, token) {
 
     await postRef.update({ repliesCount: fieldValue.increment(1) })
     await createNotification(postDoc.data()!.userUID, 'reply', uid, postUID)
+    await notifyMentions(content, uid, postUID)
 
     return { success: true, id: reply.id }
   } catch (error) {
