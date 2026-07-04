@@ -35,6 +35,19 @@
     let errorMessage = ""
     let posting = false
 
+    let accountMenuOpen = false
+    let chipWrapperEl: HTMLDivElement
+
+    function toggleAccountMenu() {
+        accountMenuOpen = !accountMenuOpen
+    }
+
+    function handleWindowClick(event: MouseEvent) {
+        if (accountMenuOpen && chipWrapperEl && !chipWrapperEl.contains(event.target as Node)) {
+            accountMenuOpen = false
+        }
+    }
+
     const postSchema = z.object({
         postValue: z.string().min(1, "Post cannot be empty").max(300, "Post cannot exceed 300 characters"),
     })
@@ -155,7 +168,7 @@
     }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window on:keydown={handleKeydown} on:click={handleWindowClick} />
 <nav class="tabs">
     {#if post}
         <div class="postToast" on:click|self={togglePost} role="presentation" transition:fade={{ duration: 150 }}>
@@ -232,18 +245,8 @@
         />
     {/if}
     <ul>
-        <a class="brandLink" href="/" aria-label="Ivory home">
-            {#if userAccount}
-                <img
-                    src={userAccount.user.photoURL}
-                    width="64px"
-                    height="64px"
-                    class="profilePicture"
-                    alt="Your avatar"
-                />
-            {:else}
-                <Skeleton circle width="64px" height="64px" />
-            {/if}
+        <a class="logoLink" href="/" aria-label="Ivory home">
+            <Icon icon="material-symbols:diamond-outline" width="28px" height="28px" />
         </a>
         <li>
             <a href='/' class:selected={isActive('/')}>
@@ -284,10 +287,37 @@
             <Icon icon="material-symbols:edit-square-outline-rounded" width="22px" height="22px" color="fff" />
             <p>Post</p>
         </button>
-        <button class="postButton logout" on:click={logout}>
-            <Icon icon="material-symbols:logout-rounded" width="20px" height="20px" color="fff" />
-            <p>Log out</p>
-        </button>
+
+        <div class="chipWrapper" bind:this={chipWrapperEl}>
+            <a href={userAccount ? `/${userAccount.user.username}` : '#'} class="profileChip">
+                {#if userAccount}
+                    <img
+                        src={userAccount.user.photoURL}
+                        width="40px"
+                        height="40px"
+                        class="chipAvatar"
+                        alt="Your avatar"
+                    />
+                    <span class="chipInfo">
+                        <span class="chipName">{userAccount.user.displayName}</span>
+                        <span class="chipHandle">@{userAccount.user.username}</span>
+                    </span>
+                {:else}
+                    <Skeleton circle width="40px" height="40px" />
+                {/if}
+            </a>
+            <button class="chipMenuButton" on:click={toggleAccountMenu} aria-label="Account menu">
+                <Icon icon="material-symbols:more-horiz" width="20px" height="20px" />
+            </button>
+            {#if accountMenuOpen}
+                <div class="accountMenu" transition:fade={{ duration: 120 }}>
+                    <button on:click={logout}>
+                        <Icon icon="material-symbols:logout-rounded" width="18px" height="18px" />
+                        Log out
+                    </button>
+                </div>
+            {/if}
+        </div>
     </ul>
 </nav>
 
@@ -521,16 +551,139 @@
         background: var(--background-elevated-highlight);
     }
 
-    .brandLink {
-        display: inline-block;
-        text-decoration: none;
+    .logoLink {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        margin-bottom: 0.4rem;
+        border-radius: 50%;
+        color: var(--essential-announcement);
+        transition: background 0.2s;
+    }
+
+    .logoLink:hover {
+        background: var(--background-highlight);
     }
 
     .tabs ul {
+        min-height: calc(100% - 2.4rem);
         padding-block: 1.2rem;
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
+    }
+
+    .chipWrapper {
+        position: relative;
+        margin-top: auto;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.3rem;
+        padding-top: 0.8rem;
+    }
+
+    .profileChip {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.5rem;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+
+    .profileChip:hover {
+        background: var(--background-highlight);
+    }
+
+    .chipAvatar {
+        min-width: 40px;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--white-smoke);
+        border-radius: 50%;
+        object-fit: cover;
+        background: var(--background-elevated-highlight);
+    }
+
+    .chipInfo {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        line-height: 1.2;
+    }
+
+    .chipName {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-base);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chipHandle {
+        font-size: 13px;
+        color: var(--text-subdued);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chipMenuButton {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-base);
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .chipMenuButton:hover {
+        background: var(--background-highlight);
+    }
+
+    .accountMenu {
+        position: absolute;
+        bottom: calc(100% + 0.4rem);
+        right: 0.5rem;
+        min-width: 180px;
+        background: var(--background-base);
+        border: 1px solid var(--gainsboro);
+        border-radius: 0.8rem;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        overflow: hidden;
+        z-index: 20;
+    }
+
+    .accountMenu button {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.8rem 1rem;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        color: var(--essential-negative);
+        font-weight: 600;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+
+    .accountMenu button:hover {
+        background: var(--background-highlight);
     }
 
     .tabs ul li a {
@@ -615,20 +768,6 @@
         font-weight: 700;
     }
 
-    .logout {
-        background: transparent;
-        border: 0.1rem solid var(--background-elevated-press);
-    }
-
-    .logout p, .logout :global(svg) {
-        color: var(--essential-negative) !important;
-    }
-
-    .logout:hover {
-        background: rgba(233, 20, 41, 0.08);
-        opacity: 1;
-    }
-
     @media (max-width: 1100px) {
         .tabs {
             width: 88px;
@@ -658,10 +797,24 @@
             display: none;
         }
 
-        .brandLink img, .brandLink :global(span) {
-            width: 44px !important;
-            height: 44px !important;
-            min-width: 44px !important;
+        .chipWrapper {
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .profileChip {
+            flex: 0 0 auto;
+            padding: 0.4rem;
+        }
+
+        .chipInfo {
+            display: none;
+        }
+
+        .accountMenu {
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
         }
     }
 
