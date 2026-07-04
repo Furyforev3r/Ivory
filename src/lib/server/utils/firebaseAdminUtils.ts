@@ -620,6 +620,70 @@ export async function getFollowStatus(targetUID, uid) {
   }
 }
 
+async function getFollowList(targetUID, requesterUID, direction) {
+  try {
+    const targetDoc = await db.collection('Users').doc(targetUID).get()
+
+    if (!targetDoc.exists) {
+      return { success: false, message: 'User not found' }
+    }
+
+    if (targetDoc.data()!.settings?.hideFollowLists && requesterUID !== targetUID) {
+      return { success: false, message: 'This user has hidden this list' }
+    }
+
+    const field = direction === 'followers' ? 'followingUID' : 'followerUID'
+    const uidField = direction === 'followers' ? 'followerUID' : 'followingUID'
+
+    const followsSnapshot = await db.collection('Follows').where(field, '==', targetUID).get()
+    const uids = followsSnapshot.docs.map(doc => doc.data()[uidField])
+
+    const users = await Promise.all(uids.map(async uid => {
+      const result = await getSimpleUserByUID(uid)
+      return result.success ? result.user : null
+    }))
+
+    return { success: true, users: users.filter(Boolean) }
+  } catch (error) {
+    console.error('Error fetching follow list:', error)
+    return { success: false, error: 'Failed to fetch follow list' }
+  }
+}
+
+export async function getFollowers(targetUID, requesterUID) {
+  return getFollowList(targetUID, requesterUID, 'followers')
+}
+
+export async function getFollowing(targetUID, requesterUID) {
+  return getFollowList(targetUID, requesterUID, 'following')
+}
+
+export async function updatePrivacySettings(uid, token, settingsUpdate) {
+  const tokenVerification = await verifyToken(token)
+
+  if (!tokenVerification.success) {
+    return { success: false, message: tokenVerification.error }
+  }
+
+  if (tokenVerification.uid !== uid) {
+    return { success: false, message: 'You do not have permission to do this' }
+  }
+
+  try {
+    const updatePayload: Record<string, any> = {}
+    for (const [key, value] of Object.entries(settingsUpdate)) {
+      updatePayload[`settings.${key}`] = value
+    }
+
+    await db.collection('Users').doc(uid).update(updatePayload)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating privacy settings:', error)
+    return { success: false, error: 'Failed to update privacy settings' }
+  }
+}
+
 export async function getNotifications(uid, token, limit = 30) {
   const tokenVerification = await verifyToken(token)
 

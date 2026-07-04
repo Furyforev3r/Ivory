@@ -5,13 +5,41 @@
     import { logout } from "$lib/client/utils/firebaseUtils"
     import Icon from "@iconify/svelte"
     import Skeleton from "$lib/components/+Skeleton.svelte"
+    import axios from "axios"
+    import toast from "svelte-french-toast"
 
     let userInfo: any
     let userAccount
+    let hideFollowLists = false
+    let hideFollowListsLoadedFor: string | null = null
+    let updatingPrivacy = false
 
     $: userInfo = $user
     $: userAccount = $account
     $: if (userInfo && userInfo !== "Loading...") ensureAccount(userInfo.uid)
+    $: if (userAccount && hideFollowListsLoadedFor !== userAccount.user.uid) {
+        hideFollowLists = !!userAccount.user.settings?.hideFollowLists
+        hideFollowListsLoadedFor = userAccount.user.uid
+    }
+
+    async function toggleHideFollowLists() {
+        if (updatingPrivacy || !userInfo) return
+
+        const previous = hideFollowLists
+        hideFollowLists = !previous
+        updatingPrivacy = true
+
+        try {
+            await axios.post(`/api/updatePrivacySettings?token=${userInfo.accessToken}&uid=${userInfo.uid}`, {
+                hideFollowLists
+            })
+        } catch (error) {
+            hideFollowLists = previous
+            toast.error("Could not update privacy settings")
+        } finally {
+            updatingPrivacy = false
+        }
+    }
 
     const themeOptions = [
         { value: "system", label: "System", icon: "material-symbols:contrast-rounded" },
@@ -66,6 +94,19 @@
                 </button>
             {/each}
         </div>
+    </section>
+
+    <section class="section">
+        <h3>Privacy</h3>
+        <button type="button" class="toggleRow" on:click={toggleHideFollowLists} disabled={updatingPrivacy}>
+            <div class="toggleInfo">
+                <p class="toggleLabel">Hide followers &amp; following lists</p>
+                <p class="toggleDescription">When on, only you can see who follows you and who you follow.</p>
+            </div>
+            <span class="switch" class:on={hideFollowLists}>
+                <span class="switchKnob" />
+            </span>
+        </button>
     </section>
 
     <section class="section">
@@ -194,6 +235,72 @@
         flex-grow: 1;
         text-align: left;
         font-weight: 600;
+    }
+
+    .toggleRow {
+        cursor: pointer;
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.8rem 1rem;
+        border-radius: 0.6rem;
+        border: 0.1rem solid var(--background-elevated-press);
+        background: none;
+        text-align: left;
+    }
+
+    .toggleRow:disabled {
+        opacity: 0.7;
+        cursor: default;
+    }
+
+    .toggleInfo {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .toggleLabel {
+        font-weight: 700;
+        color: var(--text-base);
+        font-size: 15px;
+    }
+
+    .toggleDescription {
+        color: var(--text-subdued);
+        font-size: 13px;
+    }
+
+    .switch {
+        flex-shrink: 0;
+        position: relative;
+        width: 44px;
+        height: 26px;
+        border-radius: 999px;
+        background: var(--background-elevated-press);
+        transition: background 0.2s;
+    }
+
+    .switch.on {
+        background: var(--essential-announcement);
+    }
+
+    .switchKnob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.2s;
+    }
+
+    .switch.on .switchKnob {
+        left: 21px;
     }
 
     .logoutRow {

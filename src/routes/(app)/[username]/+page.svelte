@@ -12,6 +12,7 @@
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
     import Skeleton from "$lib/components/+Skeleton.svelte"
     import ImageCropModal from "$lib/components/+ImageCropModal.svelte"
+    import UserListModal from "$lib/components/+UserListModal.svelte"
     import { fade, scale } from "svelte/transition"
     import { shareLink } from "$lib/client/utils/share"
 
@@ -30,6 +31,15 @@
     let hoveringFollow = false
     let postNotifSubscribed = false
     let postNotifBusy = false
+    let userListMode: "followers" | "following" | null = null
+
+    function openUserList(mode: "followers" | "following") {
+        userListMode = mode
+    }
+
+    function closeUserList() {
+        userListMode = null
+    }
 
     let avatarInput: HTMLInputElement
     let bannerInput: HTMLInputElement
@@ -419,8 +429,12 @@
             <h2>{userProfile.user.displayName}</h2>
             <p class="username">@{userProfile.user.username}</p>
             <div class="profileInfo">
-                <p><span>{userProfile.user.followingCount ?? 0}</span> Following</p>
-                <p><span>{userProfile.user.followersCount ?? 0}</span> Followers</p>
+                <button type="button" class="statButton" on:click={() => openUserList("following")}>
+                    <span>{userProfile.user.followingCount ?? 0}</span> Following
+                </button>
+                <button type="button" class="statButton" on:click={() => openUserList("followers")}>
+                    <span>{userProfile.user.followersCount ?? 0}</span> Followers
+                </button>
                 <p><span>{userPosts?.posts?.posts?.length ?? 0}</span> Posts</p>
             </div>
             <div class="profileDescription">
@@ -443,6 +457,16 @@
         </div>
     {/if}
 </div>
+
+{#if userListMode && userProfile}
+    <UserListModal
+        title={userListMode === "followers" ? "Followers" : "Following"}
+        targetUID={userProfile.user.uid}
+        mode={userListMode}
+        requesterUID={userInfo && userInfo !== "Loading..." ? userInfo.uid : null}
+        on:close={closeUserList}
+    />
+{/if}
 
 <style>
     .content {
@@ -744,13 +768,26 @@
         margin-block: 0.3rem;
     }
 
-    .profileInfo p {
+    .profileInfo p, .profileInfo .statButton {
         color: var(--text-subdued);
     }
 
     .profileInfo span {
         font-weight: 700;
         color: var(--text-base);
+    }
+
+    .statButton {
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0;
+        font-size: inherit;
+        font-family: inherit;
+    }
+
+    .statButton:hover {
+        text-decoration: underline;
     }
 
     .profileDescription {
@@ -799,7 +836,7 @@
             font-size: 18px;
         }
 
-        .profileInfo p, .profileDescription p, .contentButton {
+        .profileInfo p, .profileInfo .statButton, .profileDescription p, .contentButton {
             font-size: 14px;
         }
     }
