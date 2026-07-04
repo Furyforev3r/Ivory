@@ -178,17 +178,20 @@ export async function getRecentPosts(limit = 10, cursorMillis = null) {
 
 export async function getPostsByUserUID(userUID, limit = 10) {
   try {
+    // Sorted in memory instead of via .orderBy() so this doesn't depend on a
+    // Firestore composite index existing for (userUID, uploadDate).
     const postsSnapshot = await db.collection('Posts')
       .where('userUID', '==', userUID)
-      .orderBy('uploadDate', 'desc')
-      .limit(limit)
       .get()
 
     if (!postsSnapshot.empty) {
-      const posts = postsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
+      const posts = (postsSnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as any[])
+        .sort((a, b) => (b.uploadDate?.toMillis?.() || 0) - (a.uploadDate?.toMillis?.() || 0))
+        .slice(0, limit)
 
       return { success: true, posts }
     } else {
