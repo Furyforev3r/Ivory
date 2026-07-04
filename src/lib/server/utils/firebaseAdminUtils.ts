@@ -252,7 +252,9 @@ export async function newPost(post, token) {
       )
     )
 
-    return { success: true, newPost }
+    const newPostDoc = await newPost.get()
+
+    return { success: true, post: { id: newPost.id, ...newPostDoc.data() } }
   } catch (error) {
     console.error('Error making the post:', error)
     return { success: false, error: 'Failed to post' }

@@ -2,6 +2,7 @@
     import { onMount } from "svelte"
     import Post from "$lib/components/+Post.svelte"
     import PostSkeleton from "$lib/components/+PostSkeleton.svelte"
+    import Composer from "$lib/components/+Composer.svelte"
     import toast from "svelte-french-toast"
     import axios from "axios"
 
@@ -60,6 +61,10 @@
             loadMorePosts()
         }
     }
+
+    function handlePosted(event: CustomEvent<{ post: any }>) {
+        timeline = [event.detail.post, ...timeline]
+    }
 </script>
 
 <svelte:head>
@@ -72,6 +77,7 @@
         <h2>Home</h2>
     </div>
     <div class="posts" bind:this={postsEl} on:scroll={handleScroll}>
+        <Composer variant="inline" on:posted={handlePosted} />
         {#if initialLoading}
             {#each Array(5) as _}
                 <PostSkeleton />

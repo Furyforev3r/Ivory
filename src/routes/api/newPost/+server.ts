@@ -9,7 +9,7 @@ export async function POST({ url, request }) {
     const post = await newPost(newPostInfo, token)
 
     if (post.success) {
-      return json({ message: 'Post made successfully' }, { status: 201 })
+      return json({ message: 'Post made successfully', post: post.post }, { status: 201 })
     } else {
       return json({ error: 'Failed to post' }, { status: 409 })
     }
